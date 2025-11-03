@@ -15,6 +15,10 @@ Project layout (top-level)
 - `frontend/` — React app (UI, routes, pages, contexts)
 - `backend/` — Express API (routes, controllers, models, middleware)
 
+Live demo
+
+- https://stay-ease-frontend-one.vercel.app/ 
+
 ---
 
 ## Features
