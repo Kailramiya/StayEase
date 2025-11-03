@@ -18,15 +18,25 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // CORS configuration
-const allowedOrigins = ['*'];
+const allowedOrigins = [
+  'https://stay-ease-frontend-one.vercel.app', // ✅ your deployed frontend
+  'http://localhost:5173',                     // ✅ for local dev
+];
 
 const corsOptions = {
-  origin: allowedOrigins,
-  // credentials: true,
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true, // ✅ important for cookies or auth
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  optionsSuccessStatus: 200,
 };
+
+
 app.use(cors(corsOptions));
 // app.options('/*', cors(corsOptions));
 // Logging middleware
