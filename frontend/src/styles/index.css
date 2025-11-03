@@ -1,0 +1,147 @@
+@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom global styles */
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f9fafb;
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: #0ea5e9;
+  transition: color 0.3s ease;
+}
+
+a:hover {
+  color: #0369a1;
+}
+
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  ring-width: 2;
+  ring-color: #0ea5e9;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  transition: border-color 0.3s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #0ea5e9;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #0ea5e9;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: #f9fafb;
+}
+
+/* helpers to avoid icons overlapping placeholder text
+   - Use a parent wrapper .has-left-icon or .has-right-icon around the input
+   - Or add .input-with-left-icon / .input-with-right-icon directly to inputs
+*/
+.input-with-left-icon,
+.has-left-icon input,
+.has-left-icon textarea {
+  padding-left: 3rem; /* ~48px, matches common icon container width */
+}
+
+.input-with-right-icon,
+.has-right-icon input,
+.has-right-icon textarea {
+  padding-right: 3rem; /* space for right-side controls (eye, clear, etc) */
+}
+
+/* left icon positioning inside .relative */
+.left-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none; /* icon won't block input clicks */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* right side icon/button (clickable) */
+.right-icon {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* smaller adjustments for inputs inside form groups */
+.has-left-icon .left-icon svg,
+.left-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.has-right-icon .right-icon svg,
+.right-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+.input-with-left-icon,
+.has-left-icon input,
+.has-left-icon textarea {
+  padding-left: 3rem; /* ~48px, matches common icon container width */
+}
+
+.input-with-right-icon,
+.has-right-icon input,
+.has-right-icon textarea {
+  padding-right: 3rem; /* space for right-side controls (eye, clear, etc) */
+}
+
+/* keep pointer-events off so icons don't block clicks on the input */
+.has-left-icon .left-icon,
+.left-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* right-side icon/button (show/hide password) should allow clicking */
+.has-right-icon .right-icon,
+.right-icon {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+}

@@ -1,0 +1,33 @@
+# Node modules
+node_modules/
+
+# Local environment files
+.env
+.env.*
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+
+tmp/
+
+# Uploads and generated files
+uploads/
+public/uploads/
+
+# Editor directories and files
+.vscode/
+.idea/
+.DS_Store
+
+# Coverage
+coverage/
+
+# Misc
+.DS_Store
