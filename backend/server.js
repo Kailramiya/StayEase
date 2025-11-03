@@ -30,7 +30,7 @@ const corsOptions = {
   optionsSuccessStatus: 200,
 };
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.options('/*', cors(corsOptions));
 // Logging middleware
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
