@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
+import { getCookie } from '../../utils/cookies';
 import { FaEye, FaEyeSlash, FaEnvelope, FaLock, FaUserShield, FaUser } from 'react-icons/fa';
 
 const Login = () => {
@@ -23,16 +24,12 @@ const Login = () => {
 
   React.useEffect(() => {
     try {
-      const match = document.cookie.match(/(?:^|; )user=([^;]+)/);
-      if (match) {
-        const raw = decodeURIComponent(match[1] || '');
+      const raw = getCookie('user');
+      if (raw) {
         try {
           const stored = JSON.parse(raw || '{}');
-          // token might be at top-level or nested under user
           const token = stored?.token || stored?.user?.token;
-          if (token) {
-            navigate('/', { replace: true });
-          }
+          if (token) navigate('/', { replace: true });
         } catch (e) {
           // malformed JSON in cookie — treat as not-logged-in
         }
@@ -73,8 +70,8 @@ const Login = () => {
     
     setLoading(true);
     try {
-      const data = await login({ ...formData, role });
-      const resolvedRole = data?.user?.role || role;
+  const data = await login({ ...formData, role });
+  const resolvedRole = data?.role || role;
       navigate(resolvedRole === 'admin' ? '/admin' : '/dashboard', { replace: true });
     } catch (err) {
       console.error('Login error:', err);

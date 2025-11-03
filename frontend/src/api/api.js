@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getCookie, setCookie, deleteCookie } from '../utils/cookies';
 
 /**
  * Axios instance for API calls
@@ -18,9 +19,15 @@ const api = axios.create({
  */
 api.interceptors.request.use(
   (config) => {
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (user && user.token) {
-      config.headers.Authorization = `Bearer ${user.token}`;
+    // Read auth token from cookie (migration from localStorage)
+    try {
+      const raw = getCookie('user');
+      const user = raw ? JSON.parse(raw) : null;
+      if (user && user.token) {
+        config.headers.Authorization = `Bearer ${user.token}`;
+      }
+    } catch (err) {
+      // ignore parse errors
     }
     
     // Log request in development
@@ -59,10 +66,10 @@ api.interceptors.response.use(
       
       switch (status) {
         case 401:
-          // Unauthorized - clear user data and redirect to login
+          // Unauthorized - clear user cookie and redirect to login
           console.warn('Unauthorized access - clearing session');
-          localStorage.removeItem('user');
-          
+          try { deleteCookie('user'); } catch (e) {}
+
           // Only redirect if not already on login/register page
           if (!window.location.pathname.includes('/login') && 
               !window.location.pathname.includes('/register')) {
@@ -185,8 +192,13 @@ export const downloadFile = async (url, filename) => {
  * @returns {boolean} Authentication status
  */
 export const isAuthenticated = () => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  return !!(user && user.token);
+  try {
+    const raw = getCookie('user');
+    const user = raw ? JSON.parse(raw) : null;
+    return !!(user && user.token);
+  } catch (err) {
+    return false;
+  }
 };
 
 /**
@@ -195,7 +207,8 @@ export const isAuthenticated = () => {
  */
 export const getCurrentUser = () => {
   try {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const raw = getCookie('user');
+    const user = raw ? JSON.parse(raw) : null;
     return user || null;
   } catch (error) {
     console.error('Error getting current user:', error);
@@ -207,7 +220,7 @@ export const getCurrentUser = () => {
  * Helper function to clear authentication
  */
 export const clearAuth = () => {
-  localStorage.removeItem('user');
+  try { deleteCookie('user'); } catch (e) {}
   delete api.defaults.headers.common['Authorization'];
 };
 
