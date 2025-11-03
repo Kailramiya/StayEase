@@ -18,8 +18,8 @@ const paymentSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['razorpay', 'card', 'upi', 'netbanking', 'local'],
-      default: 'razorpay',
+      enum: ['card', 'upi', 'netbanking', 'local'],
+      default: 'local',
     },
     paymentStatus: {
       type: String,
@@ -29,9 +29,7 @@ const paymentSchema = new mongoose.Schema(
     transactionId: {
       type: String,
     },
-    razorpayOrderId: String,
-    razorpayPaymentId: String,
-    razorpaySignature: String,
+  // Removed Razorpay-specific fields
   },
   { timestamps: true }
 );

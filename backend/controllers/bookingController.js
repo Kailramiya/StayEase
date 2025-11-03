@@ -2,7 +2,7 @@ const Booking = require('../models/Booking');
 const Property = require('../models/Property');
 const Payment = require('../models/Payment');
 const AddOn = require('../models/AddOn');
-const razorpay = require('../config/razorpay');
+// Razorpay removed — payments use local provider by default
 const mongoose = require('mongoose');
 const crypto = require('crypto');
 
@@ -98,26 +98,6 @@ const createBooking = async (req, res) => {
     session.endSession();
 
     return res.json({ booking, paymentOrder: { provider: 'local', paid: true, amount: amountPaise } });
-
-    // Create Payment record
-    const payment = new Payment({
-      booking: booking._id,
-      user: req.user._id,
-      amount: totalPrice,
-      paymentMethod: 'razorpay',
-      paymentStatus: 'pending',
-      razorpayOrderId: razorOrder.id,
-    });
-    await payment.save({ session });
-
-    // attach payment to booking
-    booking.payment = payment._id;
-    await booking.save({ session });
-
-    await session.commitTransaction();
-    session.endSession();
-
-    return res.json({ booking, paymentOrder: { provider: 'razorpay', orderId: razorOrder.id, amount: amountPaise, key: process.env.RAZORPAY_KEY_ID } });
   } catch (error) {
     await session.abortTransaction().catch(() => {});
     session.endSession();
@@ -128,44 +108,8 @@ const createBooking = async (req, res) => {
 
 // POST /api/bookings/:id/verify
 const verifyPayment = async (req, res) => {
-  try {
-    const { id } = req.params; // booking id
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).json({ message: 'Missing payment verification fields' });
-    }
-
-    // verify signature
-    const generated_signature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-      .update(razorpay_order_id + '|' + razorpay_payment_id)
-      .digest('hex');
-
-    if (generated_signature !== razorpay_signature) {
-      return res.status(400).json({ message: 'Invalid signature' });
-    }
-
-    // update payment and booking
-    const payment = await Payment.findOne({ razorpayOrderId: razorpay_order_id });
-    if (!payment) return res.status(404).json({ message: 'Payment record not found' });
-
-    payment.razorpayPaymentId = razorpay_payment_id;
-    payment.razorpaySignature = razorpay_signature;
-    payment.paymentStatus = 'completed';
-    payment.transactionId = razorpay_payment_id;
-    await payment.save();
-
-    const booking = await Booking.findById(payment.booking);
-    if (!booking) return res.status(404).json({ message: 'Booking not found' });
-
-    booking.status = 'confirmed';
-    booking.payment = payment._id;
-    await booking.save();
-
-    return res.json({ booking, payment });
-  } catch (error) {
-    console.error('verifyPayment error', error);
-    return res.status(500).json({ message: error.message });
-  }
+  // Razorpay removed: payment verification via gateway is not available
+  return res.status(501).json({ message: 'Payment gateway integration removed. No verification available.' });
 };
 
 // Get user bookings

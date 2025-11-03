@@ -1,6 +1,4 @@
 const Payment = require('../models/Payment');
-const Razorpay = require('razorpay');
-const razorpayInstance = require('../config/razorpay');
 
 const createOrder = async (req, res) => {
   // extract booking and amount from req.body
