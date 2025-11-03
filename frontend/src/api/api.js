@@ -5,7 +5,7 @@ import axios from 'axios';
  * Base URL is set from environment variable or defaults to localhost
  */
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://stayease-o1si.onrender.com/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -18,16 +18,9 @@ const api = axios.create({
  */
 api.interceptors.request.use(
   (config) => {
-    const match = document.cookie.match(/(?:^|; )user=([^;]+)/);
-    if (match) {
-      try {
-        const user = JSON.parse(decodeURIComponent(match[1]));
-        if (user && user.token) {
-          config.headers.Authorization = `Bearer ${user.token}`;
-        }
-      } catch (err) {
-        // ignore parse errors
-      }
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user && user.token) {
+      config.headers.Authorization = `Bearer ${user.token}`;
     }
     
     // Log request in development
@@ -68,8 +61,7 @@ api.interceptors.response.use(
         case 401:
           // Unauthorized - clear user data and redirect to login
           console.warn('Unauthorized access - clearing session');
-          // remove user cookie
-          document.cookie = 'user=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax';
+          localStorage.removeItem('user');
           
           // Only redirect if not already on login/register page
           if (!window.location.pathname.includes('/login') && 
@@ -193,14 +185,8 @@ export const downloadFile = async (url, filename) => {
  * @returns {boolean} Authentication status
  */
 export const isAuthenticated = () => {
-  try {
-    const match = document.cookie.match(/(?:^|; )user=([^;]+)/);
-    if (!match) return false;
-    const user = JSON.parse(decodeURIComponent(match[1]));
-    return !!(user && user.token);
-  } catch (err) {
-    return false;
-  }
+  const user = JSON.parse(localStorage.getItem('user'));
+  return !!(user && user.token);
 };
 
 /**
@@ -209,8 +195,8 @@ export const isAuthenticated = () => {
  */
 export const getCurrentUser = () => {
   try {
-    const match = document.cookie.match(/(?:^|; )user=([^;]+)/);
-    return match ? JSON.parse(decodeURIComponent(match[1])) : null;
+    const user = JSON.parse(localStorage.getItem('user'));
+    return user || null;
   } catch (error) {
     console.error('Error getting current user:', error);
     return null;
@@ -221,7 +207,7 @@ export const getCurrentUser = () => {
  * Helper function to clear authentication
  */
 export const clearAuth = () => {
-  document.cookie = 'user=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax';
+  localStorage.removeItem('user');
   delete api.defaults.headers.common['Authorization'];
 };
 
