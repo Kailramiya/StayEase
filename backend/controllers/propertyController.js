@@ -1,7 +1,8 @@
 const Property = require('../models/Property');
 const cloudinary = require('../config/cloudinary');
+const { getOrSetCache, invalidateByPrefix } = require('../utils/cache');
 
-// Get all properties with filters
+// Get all properties with filters (cached)
 const getProperties = async (req, res) => {
   try {
     let filters = {};
@@ -36,16 +37,23 @@ const getProperties = async (req, res) => {
     const limit = parseInt(req.query.limit, 10) || 9;
     const sortParam = req.query.sort || '-createdAt';
 
-    const total = await Property.countDocuments(filters);
-    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const cachePrefix = 'properties';
+    const params = { page, limit, sortParam, ...req.query };
 
-    const properties = await Property.find(filters)
-      .sort(sortParam)
-      .skip((page - 1) * limit)
-      .limit(limit);
+    const result = await getOrSetCache(cachePrefix, params, 60, async () => {
+      const total = await Property.countDocuments(filters);
+      const totalPages = Math.max(1, Math.ceil(total / limit));
 
-    // Return a consistent response shape that the frontend can consume
-    res.json({ properties, total, totalPages, page });
+      const properties = await Property.find(filters)
+        .sort(sortParam)
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+
+      return { properties, total, totalPages, page };
+    });
+
+    res.json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -72,6 +80,8 @@ const createProperty = async (req, res) => {
       owner: req.user._id,
     });
     await newProperty.save();
+    // Invalidate cache for property listings
+    await invalidateByPrefix('properties');
     res.status(201).json(newProperty);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -91,6 +101,7 @@ const updateProperty = async (req, res) => {
 
     Object.assign(property, req.body);
     await property.save();
+    await invalidateByPrefix('properties');
     res.json(property);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -109,6 +120,7 @@ const deleteProperty = async (req, res) => {
     }
 
     await property.remove();
+    await invalidateByPrefix('properties');
     res.json({ message: 'Property removed' });
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -95,3 +95,11 @@ const propertySchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model('Property', propertySchema);
+// Indexes for efficient search/filtering
+try {
+  propertySchema.index({ title: 'text', description: 'text', location: 'text' });
+  propertySchema.index({ price: 1 });
+  propertySchema.index({ location: 1 });
+} catch (e) {
+  // ignore index registration errors in hot-reload
+}
