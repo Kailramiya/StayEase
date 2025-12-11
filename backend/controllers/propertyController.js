@@ -73,7 +73,16 @@ const getPropertyById = async (req, res) => {
       .sort('-createdAt')
       .lean();
 
-    res.json({ property, reviews });
+    // Embed reviews into property payload for frontend compatibility
+    const payload = property.toObject();
+    payload.reviews = reviews;
+    payload.numReviews = reviews.length;
+    if (!payload.rating && reviews.length) {
+      const avg = Number((reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length).toFixed(1));
+      payload.rating = avg;
+    }
+
+    res.json(payload);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
