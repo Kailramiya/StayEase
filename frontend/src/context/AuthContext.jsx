@@ -1,57 +1,55 @@
 import React, { createContext, useState, useEffect } from 'react';
 import api from '../api/api';
-import { getCookie, setCookie, deleteCookie } from '../utils/cookies';
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    try {
-      const raw = getCookie('user');
-      return raw ? JSON.parse(raw) : null;
-    } catch (err) {
-      return null;
-    }
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = async (credentials) => {
-    const { data } = await api.post('/auth/login', credentials);
-    setUser(data);
-    setCookie('user', JSON.stringify(data), 7);
-    return data;
+  const fetchMe = async () => {
+    try {
+      const { data } = await api.get('/auth/me');
+      setUser(data);
+    } catch (err) {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const logout = () => {
+  const login = async (credentials) => {
+    await api.post('/auth/login', credentials);
+    // After successful login, server sets httpOnly cookie. Fetch profile.
+    await fetchMe();
+    return user;
+  };
+
+  const logout = async () => {
+    try { await api.post('/auth/logout'); } catch {}
     setUser(null);
-    deleteCookie('user');
   };
 
   const register = async (userInfo) => {
-    const { data } = await api.post('/auth/register', userInfo);
-    setUser(data);
-    setCookie('user', JSON.stringify(data), 7);
-    return data;
+    await api.post('/auth/register', userInfo);
+    await fetchMe();
+    return user;
   };
 
   useEffect(() => {
-    // Optionally validate token or refresh user info on mount
+    fetchMe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const updateUser = (next) => {
-    // Update React state and persist to localStorage
     setUser(next);
-    try {
-      if (next) setCookie('user', JSON.stringify(next), 7);
-      else deleteCookie('user');
-    } catch (err) {
-      console.warn('Failed to persist user to localStorage', err);
-    }
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        loading,
         // keep the public name `setUser` for compatibility with existing consumers
         setUser: updateUser,
         login,

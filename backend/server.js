@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const morgan = require('morgan');
 const connectDB = require('./config/db');
+const cookieParser = require('cookie-parser');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 // Load environment variables
@@ -16,6 +17,7 @@ const app = express();
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
 
 // CORS configuration
 const allowedOrigins = [

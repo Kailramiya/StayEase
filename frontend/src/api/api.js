@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { getCookie, setCookie, deleteCookie } from '../utils/cookies';
 
 /**
  * Axios instance for API calls
@@ -11,6 +10,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 30000, // 30 seconds timeout
+  withCredentials: true, // Send httpOnly cookies with every request
 });
 
 /**
@@ -19,22 +19,12 @@ const api = axios.create({
  */
 api.interceptors.request.use(
   (config) => {
-    // Read auth token from cookie (migration from localStorage)
-    try {
-      const raw = getCookie('user');
-      const user = raw ? JSON.parse(raw) : null;
-      if (user && user.token) {
-        config.headers.Authorization = `Bearer ${user.token}`;
-      }
-    } catch (err) {
-      // ignore parse errors
-    }
-    
+    // Ensure credentials flag is always set
+    config.withCredentials = true;
     // Log request in development
     if (import.meta.env.DEV) {
       console.log(`[API Request] ${config.method.toUpperCase()} ${config.url}`, config.data || config.params);
     }
-    
     return config;
   },
   (error) => {
@@ -66,10 +56,8 @@ api.interceptors.response.use(
       
       switch (status) {
         case 401:
-          // Unauthorized - clear user cookie and redirect to login
-          console.warn('Unauthorized access - clearing session');
-          try { deleteCookie('user'); } catch (e) {}
-
+          // Unauthorized - redirect to login
+          console.warn('Unauthorized access');
           // Only redirect if not already on login/register page
           if (!window.location.pathname.includes('/login') && 
               !window.location.pathname.includes('/register')) {

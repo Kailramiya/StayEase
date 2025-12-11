@@ -18,14 +18,8 @@ import api, { uploadFile } from './api';
 export const loginUser = async (credentials) => {
   try {
     const response = await api.post('/auth/login', credentials);
-    const userData = response.data;
-    
-    // Store user data in cookie
-    if (userData.token) {
-      document.cookie = `user=${encodeURIComponent(JSON.stringify(userData))}; path=/; SameSite=Lax; max-age=${7 * 24 * 60 * 60}`;
-    }
-    
-    return userData;
+    // httpOnly cookie set by server; return basic user payload
+    return response.data;
   } catch (error) {
     console.error('Login failed:', error.response?.data?.message || error.message);
     throw error;
@@ -44,14 +38,8 @@ export const loginUser = async (credentials) => {
 export const registerUser = async (userInfo) => {
   try {
     const response = await api.post('/auth/register', userInfo);
-    const userData = response.data;
-    
-    // Store user data in cookie
-    if (userData.token) {
-      document.cookie = `user=${encodeURIComponent(JSON.stringify(userData))}; path=/; SameSite=Lax; max-age=${7 * 24 * 60 * 60}`;
-    }
-    
-    return userData;
+    // httpOnly cookie set by server; return basic user payload
+    return response.data;
   } catch (error) {
     console.error('Registration failed:', error.response?.data?.message || error.message);
     throw error;
@@ -62,12 +50,9 @@ export const registerUser = async (userInfo) => {
  * Logout user
  * Clears user data from localStorage and removes auth token
  */
-export const logoutUser = () => {
+export const logoutUser = async () => {
   try {
-  // remove cookie
-  document.cookie = 'user=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax';
-    // Clear auth header
-    delete api.defaults.headers.common['Authorization'];
+    await api.post('/auth/logout');
     console.log('User logged out successfully');
   } catch (error) {
     console.error('Logout error:', error);

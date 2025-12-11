@@ -4,6 +4,22 @@ const generateToken = require('../utils/generateToken');
 const sendEmail = require('../utils/sendEmail');
 const crypto = require('crypto');
 
+// Helper to set auth cookie consistently
+const setAuthCookie = (res, token) => {
+  const isProd = process.env.NODE_ENV === 'production';
+  const sameSite = process.env.COOKIE_SAMESITE || (isProd ? 'None' : 'Lax');
+  const secure = (process.env.COOKIE_SECURE === 'true') || (isProd ? true : false);
+  const maxAgeDays = parseInt(process.env.JWT_COOKIE_DAYS || '7', 10);
+
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure,
+    sameSite, // 'None' for cross-site (requires Secure), 'Lax' for same-site
+    maxAge: maxAgeDays * 24 * 60 * 60 * 1000,
+    path: '/',
+  });
+};
+
 const register = async (req, res) => {
   try {
     const { name, email, password, phone, role } = req.body;
@@ -22,12 +38,15 @@ const register = async (req, res) => {
     });
 
     if (user) {
+      const token = generateToken(user._id);
+      setAuthCookie(res, token);
+
       res.status(201).json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id),
+        // Do not return token in body when using httpOnly cookies
       });
     }
   } catch (error) {
@@ -42,12 +61,13 @@ const login = async (req, res) => {
     const user = await User.findOne({ email }).select('+password');
 
     if (user && (await user.matchPassword(password))) {
+      const token = generateToken(user._id);
+      setAuthCookie(res, token);
       res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id),
       });
     } else {
       res.status(401).json({ message: 'Invalid credentials' });
@@ -191,10 +211,25 @@ const resetPassword = async (req, res) => {
     user.resetPasswordExpire = undefined;
     await user.save();
 
+    const token = generateToken(user._id);
+    setAuthCookie(res, token);
     res.json({
       message: 'Password reset successful',
-      token: generateToken(user._id),
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Logout - clear cookie
+const logout = async (req, res) => {
+  try {
+    res.cookie('token', '', {
+      httpOnly: true,
+      expires: new Date(0),
+      path: '/',
+    });
+    res.json({ message: 'Logged out' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -209,4 +244,5 @@ module.exports = {
   removeProfilePicture,
   forgotPassword,
   resetPassword,
+  logout,
 };

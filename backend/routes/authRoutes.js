@@ -8,6 +8,7 @@ const {
   removeProfilePicture,
   forgotPassword,
   resetPassword,
+  logout,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
@@ -43,5 +44,6 @@ router.post('/upload-profile-picture', protect, uploadSingleSafe('profilePicture
 router.delete('/profile-picture', protect, removeProfilePicture);
 router.post('/forgotpassword', forgotPassword);
 router.put('/resetpassword/:resettoken', resetPassword);
+router.post('/logout', logout);
 
 module.exports = router;
