@@ -1,4 +1,5 @@
 const Property = require('../models/Property');
+const Review = require('../models/Review');
 const cloudinary = require('../config/cloudinary');
 const { getOrSetCache, invalidateByPrefix } = require('../utils/cache');
 
@@ -59,14 +60,20 @@ const getProperties = async (req, res) => {
   }
 };
 
-// Get property by ID
+// Get property by ID (include reviews)
 const getPropertyById = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id).populate('owner', 'name email phone');
     if (!property) {
       return res.status(404).json({ message: 'Property not found' });
     }
-    res.json(property);
+    // Fetch reviews linked to this property
+    const reviews = await Review.find({ property: property._id })
+      .populate('user', 'name email')
+      .sort('-createdAt')
+      .lean();
+
+    res.json({ property, reviews });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
