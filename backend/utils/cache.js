@@ -34,17 +34,29 @@ exports.getOrSetCache = async (prefix, params, ttlSeconds, fetchFunction) => {
 exports.invalidateByPrefix = async (prefix) => {
   try {
     const stream = redis.scanStream({ match: `${prefix}:*` });
-  const keys = [];
-  return new Promise((resolve, reject) => {
-    stream.on('data', (resultKeys) => {
-      for (const k of resultKeys) keys.push(k);
+    const keys = [];
+    return new Promise((resolve, reject) => {
+      stream.on('data', (resultKeys) => {
+        for (const k of resultKeys) keys.push(k);
+      });
+      stream.on('end', async () => {
+        if (keys.length) {
+          // Use pipeline for bulk deletes to avoid AggregateError on multi-key operations
+          try {
+            const pipeline = redis.pipeline();
+            for (const k of keys) pipeline.del(k);
+            await pipeline.exec();
+          } catch (err) {
+            console.warn('Cache invalidation pipeline failed; attempting single-key deletes');
+            for (const k of keys) {
+              try { await redis.del(k); } catch {}
+            }
+          }
+        }
+        resolve(keys.length);
+      });
+      stream.on('error', reject);
     });
-    stream.on('end', async () => {
-      if (keys.length) await redis.del(keys);
-      resolve(keys.length);
-    });
-    stream.on('error', reject);
-  });
   } catch (e) {
     // Redis disabled or error — nothing invalidated
     return 0;

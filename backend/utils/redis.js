@@ -5,16 +5,27 @@ let redis;
 
 if (enabled) {
   const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-  redis = new Redis(redisUrl, {
+  const isSecure = redisUrl.startsWith('rediss://');
+  const baseOptions = {
     maxRetriesPerRequest: 3,
     retryStrategy(times) {
       return Math.min(times * 200, 2000); // backoff up to 2s
     },
-  });
+  };
+  const options = isSecure
+    ? { ...baseOptions, tls: { rejectUnauthorized: false } }
+    : baseOptions;
+
+  redis = new Redis(redisUrl, options);
 
   redis.on('error', (err) => {
     const msg = (err && err.message) ? err.message : String(err);
-    console.error('Redis error:', msg);
+    // AggregateError commonly arises from multiple underlying errors; log first cause if present
+    if (err && err.errors && err.errors.length) {
+      console.error('Redis error (Aggregate):', err.errors[0]?.message || msg);
+    } else {
+      console.error('Redis error:', msg);
+    }
   });
 
   redis.on('connect', () => {
