@@ -9,17 +9,31 @@ const normalizeKey = (keyObj) => {
 
 exports.getOrSetCache = async (prefix, params, ttlSeconds, fetchFunction) => {
   const key = `${prefix}:${normalizeKey(params)}`;
-  const cached = await redis.get(key);
-  if (cached) {
-    return JSON.parse(cached);
+  try {
+    const cached = await redis.get(key);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (e) {
+    // If Redis fails, continue without cache
+    console.warn('Cache get failed, proceeding without cache');
   }
+
   const fresh = await fetchFunction();
-  await redis.set(key, JSON.stringify(fresh), 'EX', ttlSeconds);
+
+  try {
+    await redis.set(key, JSON.stringify(fresh), 'EX', ttlSeconds);
+  } catch (e) {
+    // Ignore set errors
+    console.warn('Cache set failed, continuing');
+  }
+
   return fresh;
 };
 
 exports.invalidateByPrefix = async (prefix) => {
-  const stream = redis.scanStream({ match: `${prefix}:*` });
+  try {
+    const stream = redis.scanStream({ match: `${prefix}:*` });
   const keys = [];
   return new Promise((resolve, reject) => {
     stream.on('data', (resultKeys) => {
@@ -31,4 +45,8 @@ exports.invalidateByPrefix = async (prefix) => {
     });
     stream.on('error', reject);
   });
+  } catch (e) {
+    // Redis disabled or error — nothing invalidated
+    return 0;
+  }
 };
