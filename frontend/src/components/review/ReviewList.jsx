@@ -3,7 +3,6 @@ import {
   FaStar, 
   FaRegStar, 
   FaStarHalfAlt, 
-  FaUser, 
   FaThumbsUp,
   FaQuoteLeft,
   FaChartBar,
@@ -334,8 +333,7 @@ const ReviewList = ({ propertyId }) => {
             return (
               <div
                 key={review._id}
-                className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 hover:border-blue-200 animate-fadeIn"
-                style={{ animationDelay: `${index * 50}ms` }}
+                className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 hover:border-blue-200"
               >
                 <div className="flex items-start gap-4">
                   {/* User Avatar */}
@@ -397,24 +395,6 @@ const ReviewList = ({ propertyId }) => {
           })}
         </div>
       )}
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-fadeIn {
-          animation: fadeIn 0.4s ease-out forwards;
-          opacity: 0;
-        }
-      `}</style>
     </div>
   );
 };
