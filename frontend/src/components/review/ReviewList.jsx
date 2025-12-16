@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  FaStar, 
-  FaRegStar, 
-  FaStarHalfAlt, 
+import {
+  FaStar,
+  FaRegStar,
+  FaStarHalfAlt,
   FaThumbsUp,
   FaQuoteLeft,
   FaChartBar,
   FaCalendarAlt,
   FaFilter,
-  FaSort
+  FaSort,
 } from 'react-icons/fa';
 import { getReviewsByProperty } from '../../api/reviewService';
 
@@ -21,231 +21,191 @@ const ReviewList = ({ propertyId }) => {
   const [stats, setStats] = useState({
     averageRating: 0,
     totalReviews: 0,
-    ratingDistribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+    ratingDistribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
   });
 
+  /* ---------------- Utils ---------------- */
+
   const normalizeReviewsPayload = (payload) => {
-    // Backend typically returns: { success, count, data: Review[] }
-    // But be tolerant to nesting variations or pagination wrappers.
     if (Array.isArray(payload)) return payload;
+    return (
+      payload?.data?.data ||
+      payload?.data?.reviews ||
+      payload?.data ||
+      payload?.reviews ||
+      []
+    );
+  };
 
-    const candidates = [
-      payload?.data?.data,
-      payload?.data?.reviews,
-      payload?.data,
-      payload?.reviews,
-      payload,
+  const toNumber = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+
+  const getTimeAgo = (date) => {
+    const seconds = Math.floor((Date.now() - new Date(date)) / 1000);
+    const units = [
+      ['year', 31536000],
+      ['month', 2592000],
+      ['week', 604800],
+      ['day', 86400],
+      ['hour', 3600],
+      ['minute', 60],
     ];
-
-    for (const candidate of candidates) {
-      if (Array.isArray(candidate)) return candidate;
+    for (const [u, s] of units) {
+      const i = Math.floor(seconds / s);
+      if (i >= 1) return `${i} ${u}${i > 1 ? 's' : ''} ago`;
     }
-
-    return [];
+    return 'Just now';
   };
 
-  const toNumberOrZero = (value) => {
-    const n = typeof value === 'number' ? value : Number(value);
-    return Number.isFinite(n) ? n : 0;
-  };
+  const getUserInitials = (name) =>
+    name
+      ? name
+          .split(' ')
+          .map((n) => n[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase()
+      : 'U';
+
+  /* ---------------- Effects ---------------- */
 
   useEffect(() => {
     const fetchReviews = async () => {
       setLoading(true);
       try {
-        const data = await getReviewsByProperty(propertyId);
-        const validReviews = normalizeReviewsPayload(data);
-        setReviews(validReviews);
-        setFilteredReviews(validReviews);
+        const res = await getReviewsByProperty(propertyId);
+        const list = normalizeReviewsPayload(res);
+        setReviews(list);
+        setFilteredReviews(list);
 
-        // Calculate statistics
-        if (validReviews.length > 0) {
-          const total = validReviews.length;
-          const sum = validReviews.reduce((acc, r) => acc + toNumberOrZero(r.rating), 0);
-          const avg = sum / total;
-
-          const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-          validReviews.forEach((r) => {
-            const rating = Math.floor(toNumberOrZero(r.rating));
-            if (rating >= 1 && rating <= 5) {
-              distribution[rating]++;
-            }
+        if (list.length) {
+          const total = list.length;
+          const sum = list.reduce((a, r) => a + toNumber(r.rating), 0);
+          const dist = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+          list.forEach((r) => {
+            const v = Math.floor(toNumber(r.rating));
+            if (dist[v] !== undefined) dist[v]++;
           });
 
           setStats({
-            averageRating: avg,
+            averageRating: sum / total,
             totalReviews: total,
-            ratingDistribution: distribution
+            ratingDistribution: dist,
           });
         }
-      } catch (error) {
-        console.error('Failed to fetch reviews', error);
+      } catch (e) {
+        console.error(e);
         setReviews([]);
         setFilteredReviews([]);
       } finally {
         setLoading(false);
       }
     };
+
     if (propertyId) fetchReviews();
   }, [propertyId]);
 
-  // Filter and sort reviews
   useEffect(() => {
-    let result = [...reviews];
+    let list = [...reviews];
 
-    // Filter by rating
     if (filterRating !== 'all') {
-      const targetRating = parseInt(filterRating);
-      result = result.filter((r) => Math.floor(toNumberOrZero(r.rating)) === targetRating);
+      list = list.filter(
+        (r) => Math.floor(toNumber(r.rating)) === Number(filterRating)
+      );
     }
 
-    // Sort
-    result.sort((a, b) => {
-      if (sortBy === 'newest') {
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      } else if (sortBy === 'oldest') {
-        return new Date(a.createdAt) - new Date(b.createdAt);
-      } else if (sortBy === 'highest') {
-        return toNumberOrZero(b.rating) - toNumberOrZero(a.rating);
-      } else if (sortBy === 'lowest') {
-        return toNumberOrZero(a.rating) - toNumberOrZero(b.rating);
-      }
+    list.sort((a, b) => {
+      if (sortBy === 'newest') return new Date(b.createdAt) - new Date(a.createdAt);
+      if (sortBy === 'oldest') return new Date(a.createdAt) - new Date(b.createdAt);
+      if (sortBy === 'highest') return toNumber(b.rating) - toNumber(a.rating);
+      if (sortBy === 'lowest') return toNumber(a.rating) - toNumber(b.rating);
       return 0;
     });
 
-    setFilteredReviews(result);
+    setFilteredReviews(list);
   }, [reviews, filterRating, sortBy]);
 
-  const renderStars = (rating, size = 'base') => {
-    const stars = [];
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 >= 0.5;
-    const sizeClass = size === 'large' ? 'text-xl' : size === 'small' ? 'text-sm' : 'text-base';
+  /* ---------------- Render helpers ---------------- */
 
-    for (let i = 1; i <= 5; i++) {
-      if (i <= fullStars) {
-        stars.push(<FaStar key={i} className={`text-yellow-400 ${sizeClass}`} />);
-      } else if (i === fullStars + 1 && hasHalfStar) {
-        stars.push(<FaStarHalfAlt key={i} className={`text-yellow-400 ${sizeClass}`} />);
-      } else {
-        stars.push(<FaRegStar key={i} className={`text-gray-300 ${sizeClass}`} />);
-      }
-    }
-    return <div className="flex items-center gap-0.5">{stars}</div>;
+  const renderStars = (rating) => {
+    const full = Math.floor(rating);
+    const half = rating % 1 >= 0.5;
+    return (
+      <div className="flex gap-0.5">
+        {[1, 2, 3, 4, 5].map((i) =>
+          i <= full ? (
+            <FaStar key={i} className="text-yellow-400" />
+          ) : i === full + 1 && half ? (
+            <FaStarHalfAlt key={i} className="text-yellow-400" />
+          ) : (
+            <FaRegStar key={i} className="text-gray-300" />
+          )
+        )}
+      </div>
+    );
   };
 
-  const getPercentage = (count) => {
-    if (stats.totalReviews === 0) return 0;
-    return Math.round((count / stats.totalReviews) * 100);
-  };
-
-  const getRatingLabel = (rating) => {
-    if (rating >= 4.5) return { text: 'Excellent', color: 'text-green-600', bg: 'bg-green-50' };
-    if (rating >= 4) return { text: 'Very Good', color: 'text-blue-600', bg: 'bg-blue-50' };
-    if (rating >= 3) return { text: 'Good', color: 'text-yellow-600', bg: 'bg-yellow-50' };
-    if (rating >= 2) return { text: 'Fair', color: 'text-orange-600', bg: 'bg-orange-50' };
-    return { text: 'Poor', color: 'text-red-600', bg: 'bg-red-50' };
-  };
-
-  const getUserInitials = (name) => {
-    if (!name) return 'A';
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const getTimeAgo = (date) => {
-    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-    const intervals = {
-      year: 31536000,
-      month: 2592000,
-      week: 604800,
-      day: 86400,
-      hour: 3600,
-      minute: 60
-    };
-
-    for (const [unit, secondsInUnit] of Object.entries(intervals)) {
-      const interval = Math.floor(seconds / secondsInUnit);
-      if (interval >= 1) {
-        return `${interval} ${unit}${interval !== 1 ? 's' : ''} ago`;
-      }
-    }
-    return 'Just now';
-  };
+  /* ---------------- Loading ---------------- */
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-xl">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-3 border-blue-600 mb-4"></div>
-        <p className="text-gray-600 font-medium">Loading reviews...</p>
+      <div className="w-full py-12 flex flex-col items-center justify-center bg-gray-50 rounded-xl">
+        <div className="animate-spin h-10 w-10 border-b-2 border-blue-600 rounded-full mb-3" />
+        <p className="text-gray-600">Loading reviews…</p>
       </div>
     );
   }
 
-  const avgLabel = getRatingLabel(stats.averageRating);
+  /* ---------------- MAIN RETURN ---------------- */
 
   return (
-    <div className="space-y-6">
-      {/* Rating Summary */}
+    <div className="w-full max-w-full space-y-6 overflow-hidden">
+      {/* Summary */}
       {stats.totalReviews > 0 && (
-        <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 rounded-xl p-6 md:p-8 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <FaChartBar className="text-blue-600 text-xl" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-800">Rating Overview</h3>
+        <div className="w-full bg-white border border-gray-200 rounded-xl p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <FaChartBar className="text-blue-600" />
+            <h3 className="text-xl font-semibold text-gray-800">
+              Rating overview
+            </h3>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Average Rating */}
-            <div className="text-center md:text-left">
-              <div className="inline-flex flex-col items-center md:items-start gap-3 p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-                <div className="flex items-end gap-2">
-                  <span className="text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    {stats.averageRating.toFixed(1)}
-                  </span>
-                  <span className="text-2xl text-gray-400 font-medium mb-2">/ 5.0</span>
-                </div>
-                {renderStars(stats.averageRating, 'large')}
-                <div className={`px-3 py-1.5 ${avgLabel.bg} rounded-full mt-2`}>
-                  <span className={`text-sm font-semibold ${avgLabel.color}`}>
-                    {avgLabel.text}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 mt-2">
-                  <FaThumbsUp className="inline mr-1 text-blue-600" />
-                  {stats.totalReviews} {stats.totalReviews === 1 ? 'review' : 'reviews'}
-                </p>
+          <div className="flex flex-col sm:flex-row gap-6">
+            <div>
+              <div className="text-5xl font-bold text-gray-800">
+                {stats.averageRating.toFixed(1)}
               </div>
+              {renderStars(stats.averageRating)}
+              <p className="text-sm text-gray-600 mt-1">
+                {stats.totalReviews} reviews
+              </p>
             </div>
 
-            {/* Rating Distribution */}
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-gray-700 mb-4">Rating Distribution</p>
-              {[5, 4, 3, 2, 1].map((star) => {
-                const count = stats.ratingDistribution[star];
-                const percentage = getPercentage(count);
+            <div className="flex-1 space-y-2">
+              {[5, 4, 3, 2, 1].map((s) => {
+                const pct =
+                  stats.totalReviews === 0
+                    ? 0
+                    : Math.round(
+                        (stats.ratingDistribution[s] /
+                          stats.totalReviews) *
+                          100
+                      );
                 return (
-                  <div key={star} className="flex items-center gap-3 group">
+                  <div key={s} className="flex items-center gap-2">
                     <button
-                      onClick={() => setFilterRating(star.toString())}
-                      className="flex items-center gap-1.5 text-sm font-medium w-16 hover:text-blue-600 transition"
+                      onClick={() => setFilterRating(String(s))}
+                      className="text-sm w-8 text-right hover:text-blue-600"
                     >
-                      <span>{star}</span>
-                      <FaStar className="text-yellow-400 text-xs" />
+                      {s}★
                     </button>
-                    <div className="flex-1 bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                    <div className="flex-1 bg-gray-200 h-2 rounded">
                       <div
-                        className="bg-gradient-to-r from-yellow-400 to-yellow-500 h-2.5 rounded-full transition-all duration-500 group-hover:from-yellow-500 group-hover:to-yellow-600"
-                        style={{ width: `${percentage}%` }}
+                        className="bg-yellow-400 h-2 rounded"
+                        style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <span className="text-sm text-gray-600 w-16 text-right font-medium">
-                      {count} ({percentage}%)
+                    <span className="text-xs text-gray-500 w-10 text-right">
+                      {pct}%
                     </span>
                   </div>
                 );
@@ -255,144 +215,87 @@ const ReviewList = ({ propertyId }) => {
         </div>
       )}
 
-      {/* Filters & Sort */}
+      {/* Filters */}
       {reviews.length > 0 && (
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="flex items-center gap-2 flex-wrap">
-            <FaFilter className="text-gray-600" />
-            <span className="text-sm font-medium text-gray-700">Filter:</span>
-            {['all', '5', '4', '3', '2', '1'].map((rating) => (
-              <button
-                key={rating}
-                onClick={() => setFilterRating(rating)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                  filterRating === rating
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                {rating === 'all' ? 'All' : `${rating} ⭐`}
-              </button>
-            ))}
-          </div>
+        <div className="w-full flex flex-wrap gap-2 items-center bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <FaFilter className="text-gray-500" />
+          {['all', '5', '4', '3', '2', '1'].map((r) => (
+            <button
+              key={r}
+              onClick={() => setFilterRating(r)}
+              className={`px-3 py-1 rounded text-sm ${
+                filterRating === r
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-gray-200 text-gray-700'
+              }`}
+            >
+              {r === 'all' ? 'All' : `${r}★`}
+            </button>
+          ))}
 
-          <div className="flex items-center gap-2">
-            <FaSort className="text-gray-600" />
+          <div className="ml-auto flex items-center gap-2">
+            <FaSort className="text-gray-500" />
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border border-gray-200 rounded px-2 py-1 text-sm"
             >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="highest">Highest Rating</option>
-              <option value="lowest">Lowest Rating</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="highest">Highest</option>
+              <option value="lowest">Lowest</option>
             </select>
           </div>
         </div>
       )}
 
-      {/* Reviews List */}
+      {/* Reviews */}
       {filteredReviews.length === 0 ? (
-        <div className="text-center py-16 bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-full mb-4">
-            <FaStar className="text-gray-300 text-4xl" />
-          </div>
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">
-            {filterRating !== 'all' ? 'No reviews found' : 'No reviews yet'}
-          </h3>
-          <p className="text-gray-600 mb-4">
-            {filterRating !== 'all' 
-              ? `No ${filterRating}-star reviews available. Try changing the filter.`
-              : 'Be the first to share your experience!'
-            }
-          </p>
-          {filterRating !== 'all' && (
-            <button
-              onClick={() => setFilterRating('all')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-            >
-              Show All Reviews
-            </button>
-          )}
+        <div className="w-full text-center py-12 bg-gray-50 rounded-xl border">
+          <p className="text-gray-600">No reviews available.</p>
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-gray-800">
-              {filterRating === 'all' ? 'All Reviews' : `${filterRating}-Star Reviews`}
-              <span className="text-gray-500 font-normal text-base ml-2">
-                ({filteredReviews.length})
-              </span>
-            </h3>
-          </div>
+          {filteredReviews.map((review) => (
+            <div
+              key={review._id}
+              className="w-full bg-white border border-gray-200 rounded-xl p-5"
+            >
+              <div className="flex gap-4 items-start">
+                <div className="w-11 h-11 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold">
+                  {getUserInitials(review.user?.name)}
+                </div>
 
-          {filteredReviews.map((review, index) => {
-            const numericRating = toNumberOrZero(review.rating);
-            const reviewLabel = getRatingLabel(numericRating);
-            return (
-              <div
-                key={review._id}
-                className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 hover:border-blue-200"
-              >
-                <div className="flex items-start gap-4">
-                  {/* User Avatar */}
-                  <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-full w-12 h-12 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-md">
-                    {getUserInitials(review.user?.name)}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-3 gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-lg text-gray-800 truncate">
-                          {review.user?.name || 'Anonymous User'}
-                        </p>
-                        <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-                          <FaCalendarAlt className="text-gray-400 text-xs" />
-                          <span>{getTimeAgo(review.createdAt)}</span>
-                          <span className="text-gray-300">•</span>
-                          <span className="text-xs">
-                            {new Date(review.createdAt).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className={`flex flex-col items-end gap-2 flex-shrink-0`}>
-                        {renderStars(numericRating)}
-                        <div className={`px-3 py-1 ${reviewLabel.bg} rounded-full`}>
-                          <span className={`text-xs font-bold ${reviewLabel.color}`}>
-                            {numericRating.toFixed(1)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Review Comment */}
-                    <div className="relative">
-                      <FaQuoteLeft className="absolute -left-2 -top-2 text-blue-200 text-2xl opacity-50" />
-                      <p className="text-gray-700 leading-relaxed pl-6 text-base">
-                        {review.comment || 'No comment provided.'}
+                <div className="w-full min-w-0">
+                  <div className="flex justify-between gap-4 mb-2">
+                    <div>
+                      <p className="font-semibold text-gray-800 truncate">
+                        {review.user?.name || 'Anonymous'}
+                      </p>
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <FaCalendarAlt />
+                        {getTimeAgo(review.createdAt)}
                       </p>
                     </div>
+                    {renderStars(toNumber(review.rating))}
+                  </div>
 
-                    {/* Helpful Section (Optional) */}
-                    <div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-100">
-                      <span className="text-sm text-gray-500">Was this review helpful?</span>
-                      <button className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-blue-600 transition">
-                        <FaThumbsUp className="text-xs" />
-                        <span>Yes</span>
-                      </button>
-                    </div>
+                  <div className="relative">
+                    <FaQuoteLeft className="absolute -left-2 -top-1 text-blue-200" />
+                    <p className="pl-5 text-gray-700 break-words">
+                      {review.comment?.trim() ||
+                        'No detailed comment provided.'}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-gray-100 flex items-center gap-2 text-sm text-gray-500">
+                    <FaThumbsUp />
+                    Helpful
                   </div>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
     </div>
