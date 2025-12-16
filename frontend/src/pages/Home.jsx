@@ -1,9 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PropertyCard from '../components/property/PropertyCard';
-import { 
-  FaHome,
-} from 'react-icons/fa';
 import api from '../api/api';
 import { getFavorites } from '../api/favoriteService';
 import useAuth from '../hooks/useAuth';
@@ -37,10 +34,6 @@ const Home = () => {
 
         setRecentProperties(extractProperties(recentRes));
         setTrendingProperties(extractProperties(trendingRes));
-
-        // You can also fetch stats from admin API if available
-        // const statsData = await api.get('/admin/stats');
-        // setStats(statsData.data);
 
         // Fetch favorites if user is logged in
         if (user) {
@@ -91,14 +84,14 @@ const Home = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     const params = new URLSearchParams();
-    
+
     if (searchQuery.trim()) {
       params.append('search', searchQuery.trim());
     }
     if (searchCity.trim()) {
       params.append('city', searchCity.trim());
     }
-    
+
     if (params.toString()) {
       navigate(`/properties?${params.toString()}`);
     } else {
@@ -115,42 +108,45 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50">
       {/* Hero Section */}
-      <section className="bg-white border-b">
-        <div className="container mx-auto px-4 py-14">
+      <section className="border-b border-slate-200/70 bg-gradient-to-b from-indigo-50 to-white">
+        <div className="container mx-auto px-4 py-16">
           <div className="max-w-3xl">
-            <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-gray-900">
-              Find a monthly rental that works for you.
+            <div className="inline-flex items-center rounded-full border border-indigo-200 bg-white px-3 py-1 text-sm font-semibold text-indigo-700">
+              Monthly rentals
+            </div>
+            <h1 className="mt-5 text-4xl md:text-5xl font-semibold tracking-tight text-slate-900">
+              Find a rental that fits your month.
             </h1>
-            <p className="mt-3 text-base md:text-lg text-gray-600">
-              Search listings, check details, and book from one place.
+            <p className="mt-3 text-base md:text-lg text-slate-600">
+              Search listings by city and keyword, then book directly from the details page.
             </p>
 
-            <form onSubmit={handleSearch} className="mt-8">
-              <div className="bg-white border border-gray-200 rounded-xl p-3">
-                <div className="flex flex-col md:flex-row gap-3">
-                  <div className="flex-1 flex items-center px-3 rounded-lg border border-gray-200 focus-within:ring-2 focus-within:ring-blue-500">
+            <form onSubmit={handleSearch} className="mt-10">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
+                  <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:ring-2 focus-within:ring-indigo-500/30">
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search by name, area, or keyword"
-                      className="flex-1 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                      className="w-full py-3 text-slate-900 placeholder:text-slate-400 focus:outline-none"
                     />
                   </div>
-                  <div className="flex-1 flex items-center px-3 rounded-lg border border-gray-200 focus-within:ring-2 focus-within:ring-blue-500">
+                  <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:ring-2 focus-within:ring-indigo-500/30">
                     <input
                       type="text"
                       value={searchCity}
                       onChange={(e) => setSearchCity(e.target.value)}
                       placeholder="City"
-                      className="flex-1 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                      className="w-full py-3 text-slate-900 placeholder:text-slate-400 focus:outline-none"
                     />
                   </div>
                   <button
                     type="submit"
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2"
+                    className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40"
                   >
                     Find stays
                   </button>
@@ -162,50 +158,50 @@ const Home = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-16 bg-white">
+      <section className="bg-slate-50 py-16">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl">
-            <h2 className="text-2xl md:text-3xl font-semibold text-gray-900">How it works</h2>
-            <p className="mt-2 text-gray-600">Search → open details → book. Keep everything in your account.</p>
+            <h2 className="text-2xl md:text-3xl font-semibold text-slate-900">How it works</h2>
+            <p className="mt-2 text-slate-600">Simple flow, clear details, and bookings tracked in your account.</p>
           </div>
 
           <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="font-semibold text-gray-900">Search</h3>
-              <p className="mt-1 text-sm text-gray-600">Filter by city and basics to get a short list.</p>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">Search</h3>
+              <p className="mt-2 text-sm text-slate-600">Use keyword + city to narrow down the right options fast.</p>
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Book</h3>
-              <p className="mt-1 text-sm text-gray-600">Confirm the booking and track it from your dashboard.</p>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900">Book</h3>
+              <p className="mt-2 text-sm text-slate-600">Review photos and details, then confirm and manage bookings.</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* Live Data Section */}
-      <section className="py-14 bg-white border-t">
+      <section className="border-t border-slate-200/70 bg-white py-16">
         <div className="container mx-auto px-4">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <h2 className="text-2xl md:text-3xl font-semibold text-gray-900">Explore</h2>
-              <p className="mt-2 text-gray-600">
+              <h2 className="text-2xl md:text-3xl font-semibold text-slate-900">Explore</h2>
+              <p className="mt-2 text-slate-600">
                 These sections update based on real listings and real views.
               </p>
             </div>
-            <Link to="/properties" className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+            <Link to="/properties" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">
               See all →
             </Link>
           </div>
 
           {trendingLocations.length > 0 && (
             <div className="mt-6">
-              <p className="text-sm font-semibold text-gray-900">Trending locations</p>
+              <p className="text-sm font-semibold text-slate-900">Trending locations</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {trendingLocations.map((city) => (
                   <Link
                     key={city}
                     to={`/properties?city=${encodeURIComponent(city)}`}
-                    className="px-3 py-1 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-700 transition"
+                    className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-medium text-slate-700 transition hover:border-indigo-200 hover:bg-white hover:text-indigo-700"
                   >
                     {city}
                   </Link>
@@ -217,18 +213,18 @@ const Home = () => {
           <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-10">
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Recently added</h3>
+                <h3 className="text-lg font-semibold text-slate-900">Recently added</h3>
                 <Link
                   to="/properties?sort=-createdAt"
-                  className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                  className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
                 >
                   More
                 </Link>
               </div>
               {loading ? (
-                <div className="rounded-lg border border-gray-200 p-6 text-sm text-gray-600">Loading…</div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">Loading…</div>
               ) : visibleRecent.length === 0 ? (
-                <div className="rounded-lg border border-gray-200 p-6 text-sm text-gray-600">No recent stays yet.</div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">No recent stays yet.</div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   {visibleRecent.map((property) => (
@@ -245,15 +241,15 @@ const Home = () => {
 
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Trending now</h3>
-                <Link to="/properties?sort=-views" className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+                <h3 className="text-lg font-semibold text-slate-900">Trending now</h3>
+                <Link to="/properties?sort=-views" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">
                   More
                 </Link>
               </div>
               {loading ? (
-                <div className="rounded-lg border border-gray-200 p-6 text-sm text-gray-600">Loading…</div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">Loading…</div>
               ) : visibleTrending.length === 0 ? (
-                <div className="rounded-lg border border-gray-200 p-6 text-sm text-gray-600">No trending stays yet.</div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">No trending stays yet.</div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   {visibleTrending.map((property) => (
