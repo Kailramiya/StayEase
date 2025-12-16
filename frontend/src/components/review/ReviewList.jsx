@@ -25,25 +25,49 @@ const ReviewList = ({ propertyId }) => {
     ratingDistribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
   });
 
+  const normalizeReviewsPayload = (payload) => {
+    // Backend typically returns: { success, count, data: Review[] }
+    // But be tolerant to nesting variations or pagination wrappers.
+    if (Array.isArray(payload)) return payload;
+
+    const candidates = [
+      payload?.data?.data,
+      payload?.data?.reviews,
+      payload?.data,
+      payload?.reviews,
+      payload,
+    ];
+
+    for (const candidate of candidates) {
+      if (Array.isArray(candidate)) return candidate;
+    }
+
+    return [];
+  };
+
+  const toNumberOrZero = (value) => {
+    const n = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(n) ? n : 0;
+  };
+
   useEffect(() => {
     const fetchReviews = async () => {
       setLoading(true);
       try {
         const data = await getReviewsByProperty(propertyId);
-        const reviewList = data.data || data.reviews || data || [];
-        const validReviews = Array.isArray(reviewList) ? reviewList : [];
+        const validReviews = normalizeReviewsPayload(data);
         setReviews(validReviews);
         setFilteredReviews(validReviews);
 
         // Calculate statistics
         if (validReviews.length > 0) {
           const total = validReviews.length;
-          const sum = validReviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+          const sum = validReviews.reduce((acc, r) => acc + toNumberOrZero(r.rating), 0);
           const avg = sum / total;
 
           const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
           validReviews.forEach((r) => {
-            const rating = Math.floor(r.rating || 0);
+            const rating = Math.floor(toNumberOrZero(r.rating));
             if (rating >= 1 && rating <= 5) {
               distribution[rating]++;
             }
@@ -73,7 +97,7 @@ const ReviewList = ({ propertyId }) => {
     // Filter by rating
     if (filterRating !== 'all') {
       const targetRating = parseInt(filterRating);
-      result = result.filter(r => Math.floor(r.rating) === targetRating);
+      result = result.filter((r) => Math.floor(toNumberOrZero(r.rating)) === targetRating);
     }
 
     // Sort
@@ -83,9 +107,9 @@ const ReviewList = ({ propertyId }) => {
       } else if (sortBy === 'oldest') {
         return new Date(a.createdAt) - new Date(b.createdAt);
       } else if (sortBy === 'highest') {
-        return b.rating - a.rating;
+        return toNumberOrZero(b.rating) - toNumberOrZero(a.rating);
       } else if (sortBy === 'lowest') {
-        return a.rating - b.rating;
+        return toNumberOrZero(a.rating) - toNumberOrZero(b.rating);
       }
       return 0;
     });
@@ -305,7 +329,8 @@ const ReviewList = ({ propertyId }) => {
           </div>
 
           {filteredReviews.map((review, index) => {
-            const reviewLabel = getRatingLabel(review.rating);
+            const numericRating = toNumberOrZero(review.rating);
+            const reviewLabel = getRatingLabel(numericRating);
             return (
               <div
                 key={review._id}
@@ -340,10 +365,10 @@ const ReviewList = ({ propertyId }) => {
                       </div>
                       
                       <div className={`flex flex-col items-end gap-2 flex-shrink-0`}>
-                        {renderStars(review.rating || 0)}
+                        {renderStars(numericRating)}
                         <div className={`px-3 py-1 ${reviewLabel.bg} rounded-full`}>
                           <span className={`text-xs font-bold ${reviewLabel.color}`}>
-                            {review.rating?.toFixed(1)}
+                            {numericRating.toFixed(1)}
                           </span>
                         </div>
                       </div>
