@@ -11,6 +11,22 @@ import Team from './pages/Team';
 import Careers from './pages/Careers';
 import Press from './pages/Press';
 import Blog from './pages/Blog';
+import Help from './pages/Help';
+import Contact from './pages/Contact';
+import FAQ from './pages/FAQ';
+import Feedback from './pages/Feedback';
+import ReportIssue from './pages/ReportIssue';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
+import Cookies from './pages/Cookies';
+import Refund from './pages/Refund';
+import Disclaimer from './pages/Disclaimer';
+import Tenants from './pages/Tenants';
+import Landlords from './pages/Landlords';
+import PropertyManagement from './pages/PropertyManagement';
+import Pricing from './pages/Pricing';
+import Partnerships from './pages/Partnerships';
+import Sitemap from './pages/Sitemap';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import Favorites from './pages/Favorites';
@@ -23,11 +39,13 @@ import NotFound from './pages/NotFound';
 import Header from './components/common/Header';
 import Footer from './components/common/Footer';
 import PrivateRoute from './components/common/PrivateRoute';
+import ScrollToTop from './components/common/ScrollToTop';
 
 
 function App() {
   return (
     <>
+      <ScrollToTop />
       <Header />
       <main className="min-h-screen bg-gray-50 pt-16 pb-8">
         <Routes>
@@ -41,14 +59,28 @@ function App() {
           <Route path="/careers" element={<Careers />} />
           <Route path="/press" element={<Press />} />
           <Route path="/blog" element={<Blog />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<SignUp />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-                    
-          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/help" element={<Help />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/feedback" element={<Feedback />} />
+          <Route path="/report" element={<ReportIssue />} />
+
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/cookies" element={<Cookies />} />
+          <Route path="/refund" element={<Refund />} />
+          <Route path="/disclaimer" element={<Disclaimer />} />
+
+          <Route path="/tenants" element={<Tenants />} />
+          <Route path="/landlords" element={<Landlords />} />
+          <Route path="/property-management" element={<PropertyManagement />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/partnerships" element={<Partnerships />} />
+          <Route path="/sitemap" element={<Sitemap />} />
 
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route
             path="/admin"
             element={

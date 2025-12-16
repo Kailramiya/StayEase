@@ -105,6 +105,26 @@ export const deleteUser = async (userId) => {
 };
 
 /**
+ * Update a user's password (admin only)
+ * @param {string} userId - User ID
+ * @param {string} password - New password
+ * @param {string} confirmPassword - Confirm new password
+ * @returns {Promise} Success message
+ */
+export const updateUserPassword = async (userId, password, confirmPassword) => {
+  try {
+    const response = await api.put(`/admin/users/${userId}/password`, {
+      password,
+      confirmPassword,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Failed to update user password:', error);
+    throw error;
+  }
+};
+
+/**
  * Toggle user status (active/inactive)
  * @param {string} userId - User ID
  * @returns {Promise} Updated user

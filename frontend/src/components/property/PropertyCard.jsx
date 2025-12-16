@@ -9,6 +9,7 @@ import {
   FaHeart, 
   FaRegHeart, 
   FaCheckCircle,
+  FaInfoCircle,
   FaCouch,
   FaParking,
   FaWifi,
@@ -92,23 +93,6 @@ const PropertyCard = ({ property, isFavorite = false, onFavoriteToggle }) => {
       return;
     }
 
-    // read stored user from cookie (fall back to context user)
-    const storedUser = (() => {
-      try {
-        const cookieVal = document.cookie.match(/(?:^|; )user=([^;]+)/);
-        if (!cookieVal) return null;
-        return JSON.parse(decodeURIComponent(cookieVal[1]));
-      } catch (err) {
-        return null;
-      }
-    })();
-
-    if (!storedUser || !storedUser.token) {
-      setLoading(false);
-      alert('Your session appears to be expired. Please login again and try adding favorites.');
-      return;
-    }
-
     // Optimistic UI update: toggle locally first, then call API. Rollback on error.
     const prev = favorite;
     const newFav = !prev;
@@ -127,8 +111,12 @@ const PropertyCard = ({ property, isFavorite = false, onFavoriteToggle }) => {
       console.error('Failed to toggle favorite (optimistic):', error);
       setFavorite(prev);
       if (onFavoriteToggle) onFavoriteToggle(property._id, prev);
-      const errMsg = error?.response?.data?.message || error?.message || 'Failed to update favorites. Please try again.';
-      alert(errMsg);
+      if (error?.response?.status === 401) {
+        alert('Your session appears to be expired. Please login again and try adding favorites.');
+      } else {
+        const errMsg = error?.response?.data?.message || error?.message || 'Failed to update favorites. Please try again.';
+        alert(errMsg);
+      }
     } finally {
       setLoading(false);
     }
@@ -264,11 +252,29 @@ const PropertyCard = ({ property, isFavorite = false, onFavoriteToggle }) => {
             </div>
           </div>
 
-          {/* Verified Badge */}
-          {property.isVerified && (
-            <div className="absolute bottom-3 left-3 z-10 bg-gradient-to-r from-green-600 to-green-700 text-white px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-lg backdrop-blur-sm">
-              <FaCheckCircle size={11} />
-              <span>Verified</span>
+          {/* AI Label + Verified Badge (stacked, does not affect layout) */}
+          {(property.aiLabel || property.isVerified) && (
+            <div className="absolute bottom-3 left-3 z-10 flex flex-col items-start gap-2">
+              {property.aiLabel && (
+                <span className="bg-white/90 text-gray-800 border border-gray-200 px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm backdrop-blur-sm inline-flex items-center gap-1">
+                  <span>{property.aiLabel}</span>
+                  <span
+                    className="text-gray-500"
+                    title="Ranked using price, rating, popularity, and availability"
+                    aria-label="Ranked using price, rating, popularity, and availability"
+                  >
+                    <FaInfoCircle className="text-xs" aria-hidden="true" />
+                    <span className="sr-only">Ranked using price, rating, popularity, and availability</span>
+                  </span>
+                </span>
+              )}
+
+              {property.isVerified && (
+                <div className="bg-gradient-to-r from-green-600 to-green-700 text-white px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-lg backdrop-blur-sm">
+                  <FaCheckCircle size={11} />
+                  <span>Verified</span>
+                </div>
+              )}
             </div>
           )}
 

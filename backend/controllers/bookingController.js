@@ -6,10 +6,10 @@ const AddOn = require('../models/AddOn');
 const mongoose = require('mongoose');
 const crypto = require('crypto');
 
-// Helper: compute checkOut date by adding months to checkIn
-const addMonthsToDate = (date, months) => {
+// Helper: compute checkOut date by adding days to checkIn
+const addDaysToDate = (date, days) => {
   const d = new Date(date);
-  d.setMonth(d.getMonth() + months);
+  d.setDate(d.getDate() + days);
   return d;
 };
 
@@ -30,9 +30,16 @@ const createBooking = async (req, res) => {
  
   const session = await mongoose.startSession();
   try {
-    const { propertyId, checkIn, months, addOns = [], notes } = req.body;
-    if (!propertyId || !checkIn || !months) {
-      return res.status(400).json({ message: 'propertyId, checkIn and months are required' });
+    const { propertyId, checkIn, days, months, addOns = [], notes } = req.body;
+    // Accept either days (preferred) or legacy months for backward compatibility
+    const durationDays = days
+      ? parseInt(days, 10)
+      : months
+        ? parseInt(months, 10) * 30
+        : null;
+
+    if (!propertyId || !checkIn || !durationDays) {
+      return res.status(400).json({ message: 'propertyId, checkIn and days are required' });
     }
 
     const property = await Property.findById(propertyId);
@@ -41,15 +48,16 @@ const createBooking = async (req, res) => {
     const checkInDate = new Date(checkIn);
     if (isNaN(checkInDate)) return res.status(400).json({ message: 'Invalid checkIn date' });
 
-    const checkOutDate = addMonthsToDate(checkInDate, parseInt(months, 10));
+    const checkOutDate = addDaysToDate(checkInDate, durationDays);
 
     // Availability check
     const conflict = await hasOverlap(propertyId, checkInDate, checkOutDate);
     if (conflict) return res.status(409).json({ message: 'Property not available for selected dates' });
 
     // Price calculation
-    let base = property.price?.monthly || 0;
-    let totalPrice = base * parseInt(months, 10);
+    const baseMonthly = property.price?.monthly || 0;
+    const baseDaily = baseMonthly / 30;
+    let totalPrice = baseDaily * durationDays;
 
     // add-ons calculation
     const addonsDocs = [];
@@ -57,7 +65,7 @@ const createBooking = async (req, res) => {
       const doc = await AddOn.findById(aid);
       if (doc) {
         addonsDocs.push(doc);
-        if (doc.frequency === 'monthly') totalPrice += doc.price * parseInt(months, 10);
+        if (doc.frequency === 'monthly') totalPrice += (doc.price / 30) * durationDays; // prorate monthly add-ons by days
         else totalPrice += doc.price;
       }
     }
@@ -69,7 +77,8 @@ const createBooking = async (req, res) => {
       property: propertyId,
       checkIn: checkInDate,
       checkOut: checkOutDate,
-      months: parseInt(months, 10),
+      months: months ? parseInt(months, 10) : undefined, // legacy
+      days: durationDays,
       totalPrice,
       status: 'pending',
       addOns: addonsDocs.map(a => a._id),
@@ -92,7 +101,19 @@ const createBooking = async (req, res) => {
 
     booking.payment = localPayment._id;
     booking.status = 'confirmed';
+    booking.bookingsCountIncremented = true;
     await booking.save({ session });
+
+    // After booking is confirmed: fetch related property, increment bookingsCount, save
+    const propertyToUpdate = await Property.findById(propertyId).session(session);
+    if (!propertyToUpdate) {
+      throw new Error('Property not found');
+    }
+    const currentCount = Number.isFinite(propertyToUpdate.bookingsCount)
+      ? propertyToUpdate.bookingsCount
+      : Number(propertyToUpdate.bookingsCount) || 0;
+    propertyToUpdate.bookingsCount = currentCount + 1;
+    await propertyToUpdate.save({ session });
 
     await session.commitTransaction();
     session.endSession();
@@ -155,7 +176,25 @@ const updateBookingStatus = async (req, res) => {
     }
 
     if (req.body.status) {
+      const prevStatus = booking.status;
       booking.status = req.body.status;
+
+      // After booking is confirmed: increment property's bookingsCount only once per booking
+      if (prevStatus !== 'confirmed' && booking.status === 'confirmed' && !booking.bookingsCountIncremented) {
+        const propertyToUpdate = await Property.findById(booking.property);
+        if (propertyToUpdate) {
+          const currentCount = Number.isFinite(propertyToUpdate.bookingsCount)
+            ? propertyToUpdate.bookingsCount
+            : Number(propertyToUpdate.bookingsCount) || 0;
+          propertyToUpdate.bookingsCount = currentCount + 1;
+          await propertyToUpdate.save();
+          booking.bookingsCountIncremented = true;
+        }
+      }
+    }
+
+    if (!booking.days && booking.months) {
+      booking.days = booking.months * 30; // fallback for legacy records
     }
 
     await booking.save();
@@ -176,6 +215,11 @@ const cancelBooking = async (req, res) => {
     }
 
     booking.status = 'cancelled';
+
+    if (!booking.days && booking.months) {
+      booking.days = booking.months * 30; // fallback for legacy records
+    }
+
     await booking.save();
 
     res.json({ message: 'Booking cancelled' });
@@ -194,17 +238,28 @@ const extendBooking = async (req, res) => {
     }
 
     const { newCheckOut } = req.body;
-    const newDuration = Math.max(0, (new Date(newCheckOut).getFullYear() - new Date(booking.checkIn).getFullYear()) * 12 + (new Date(newCheckOut).getMonth() - new Date(booking.checkIn).getMonth()));
+    const newCheckOutDate = new Date(newCheckOut);
+    const checkInDate = new Date(booking.checkIn);
 
-    if (newDuration <= booking.months) {
+    const newDurationDays = Math.max(
+      0,
+      Math.ceil((newCheckOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24))
+    );
+
+    if (newDurationDays <= (booking.days || 0)) {
       return res.status(400).json({ message: 'New check-out must be after current check-out' });
     }
 
     const property = await Property.findById(booking.property);
 
-    booking.checkOut = newCheckOut;
-    booking.months = newDuration;
-    booking.totalPrice = property.price.monthly * newDuration + (property.price.security || 0);
+    booking.checkOut = newCheckOutDate;
+    booking.days = newDurationDays;
+    // Keep legacy months field approximate for compatibility
+    booking.months = Math.ceil(newDurationDays / 30);
+
+    const baseMonthly = property.price?.monthly || 0;
+    const baseDaily = baseMonthly / 30;
+    booking.totalPrice = baseDaily * newDurationDays + (property.price?.security || 0);
 
     await booking.save();
 

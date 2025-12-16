@@ -90,6 +90,19 @@ const propertySchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    views: {
+      type: Number,
+      default: 0,
+    },
+    bookingsCount: {
+      type: Number,
+      default: 0,
+    },
+    rating: {
+      type: Number,
+      default: 4.0,
+    },
+
   },
   { timestamps: true }
 );

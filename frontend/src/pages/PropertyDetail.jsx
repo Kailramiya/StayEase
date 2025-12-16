@@ -162,7 +162,7 @@ const PropertyDetail = () => {
 
   if (error || !property) {
     return (
-      <div className="container mx-auto p-8 text-center min-h-screeyyn flex items-center justify-center">
+      <div className="container mx-auto p-8 text-center min-h-screen flex items-center justify-center">
         <div>
           <FaTimesCircle className="text-red-500 text-6xl mx-auto mb-4" />
           <p className="text-xl text-gray-600 mb-4">{error || 'Property not found.'}</p>
@@ -538,11 +538,11 @@ const PropertyDetail = () => {
                         navigate('/login');
                         return;
                       }
-                      alert('Contact feature coming soon!');
+                      navigate(`/contact-owner/${property._id}`);
                     }}
-                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-2 rounded-lg font-semibold transition mt-3"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold transition mt-3"
                   >
-                    Send Message
+                    Contact Owner
                   </button>
                 </div>
               </div>

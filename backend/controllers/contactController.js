@@ -63,7 +63,10 @@ const contactOwner = async (req, res) => {
     return res.json({ message: 'Message sent to owner successfully' });
   } catch (err) {
     console.error('Contact owner error:', err);
-    return res.status(500).json({ message: 'Failed to send message' });
+    // If email service missing or timing out, fail fast with 503 to avoid client timeouts
+    const msg = err && err.message ? err.message : 'Failed to send message';
+    const status = msg.includes('Email service not configured') ? 503 : 500;
+    return res.status(status).json({ message: msg, code: err.code || undefined });
   }
 };
 

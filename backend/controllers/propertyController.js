@@ -2,9 +2,11 @@ const Property = require('../models/Property');
 const Review = require('../models/Review');
 const cloudinary = require('../config/cloudinary');
 const { getOrSetCache, invalidateByPrefix } = require('../utils/cache');
+const { calculateScore } = require('../utils/helpers');
 
 // Get all properties with filters (cached)
 const getProperties = async (req, res) => {
+  const startedAt = Date.now();
   try {
     let filters = {};
 
@@ -36,27 +38,90 @@ const getProperties = async (req, res) => {
     // Pagination & sorting
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 9;
-    const sortParam = req.query.sort || '-createdAt';
 
-    const cachePrefix = 'properties';
-    const params = { page, limit, sortParam, ...req.query };
+    // Cache the final ranked response for 60s (keyed by request query params)
+    const cachePrefix = 'properties:aiRanked';
+    const cacheParams = { ...req.query, page, limit };
+    const result = await getOrSetCache(cachePrefix, cacheParams, 60, async () => {
+      // Fetch all matching properties, then score + sort, then paginate (as requested)
+      const allMatching = await Property.find(filters).lean();
 
-    const result = await getOrSetCache(cachePrefix, params, 60, async () => {
-      const total = await Property.countDocuments(filters);
+      // Compute dataset-level price stats from results
+      const prices = allMatching
+        .map((p) => Number(p?.price?.monthly))
+        .filter((n) => Number.isFinite(n) && n > 0);
+
+      const averagePrice = prices.length
+        ? Math.round(prices.reduce((sum, n) => sum + n, 0) / prices.length)
+        : 0;
+      const maxPrice = prices.length ? Math.max(...prices) : 0;
+      const minPrice = prices.length ? Math.min(...prices) : 0;
+
+      // Demand threshold (deterministic): use average views across the matched result set
+      const viewsList = allMatching
+        .map((p) => Number(p?.views))
+        .filter((n) => Number.isFinite(n) && n >= 0);
+      const averageViews = viewsList.length
+        ? Math.round(viewsList.reduce((sum, n) => sum + n, 0) / viewsList.length)
+        : 0;
+      const viewsThreshold = averageViews;
+
+      // Compute normalization bounds for demand
+      const maxViews = allMatching.reduce((m, p) => Math.max(m, Number(p?.views) || 0), 0);
+      const maxBookingsCount = allMatching.reduce((m, p) => Math.max(m, Number(p?.bookingsCount) || 0), 0);
+
+      const scoreContext = {
+        minPrice,
+        maxPrice,
+        referencePrice: averagePrice,
+        maxViews,
+        maxBookingsCount,
+      };
+
+      const scored = allMatching.map((p) => {
+        const monthly = Number(p?.price?.monthly);
+        const hasMonthly = Number.isFinite(monthly) && monthly > 0;
+        const isBestValue = averagePrice > 0 && hasMonthly && monthly < 0.8 * averagePrice;
+        const isHighDemand = (Number(p?.views) || 0) > viewsThreshold;
+        const aiLabel = isBestValue ? 'Best Value' : isHighDemand ? 'High Demand' : 'Recommended';
+
+        return {
+          ...p,
+          aiScore: calculateScore(p, scoreContext),
+          aiLabel,
+        };
+      });
+
+      scored.sort((a, b) => {
+        const d = (b.aiScore || 0) - (a.aiScore || 0);
+        if (d !== 0) return d;
+        const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        return bt - at;
+      });
+
+      const total = scored.length;
       const totalPages = Math.max(1, Math.ceil(total / limit));
+      const safePage = Math.min(Math.max(page, 1), totalPages);
+      const start = (safePage - 1) * limit;
+      const properties = scored.slice(start, start + limit);
 
-      const properties = await Property.find(filters)
-        .sort(sortParam)
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean();
-
-      return { properties, total, totalPages, page };
+      return { properties, total, totalPages, page: safePage, averagePrice, maxPrice, viewsThreshold };
     });
 
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  } finally {
+    try {
+      const durationMs = Date.now() - startedAt;
+      // Keep logging side-effect free: never throw, never block response
+      console.info(`[getProperties] completed in ${durationMs}ms`, {
+        path: req.originalUrl,
+      });
+    } catch {
+      // ignore logging errors
+    }
   }
 };
 
@@ -67,6 +132,14 @@ const getPropertyById = async (req, res) => {
     if (!property) {
       return res.status(404).json({ message: 'Property not found' });
     }
+
+    // Increment views after the property is found (backward-compatible if views is missing)
+    const currentViews = Number.isFinite(property.views) ? property.views : Number(property.views) || 0;
+    property.views = currentViews + 1;
+    Property.updateOne({ _id: property._id }, { $inc: { views: 1 } }).catch((err) => {
+      console.error('View count update failed:', err);
+    });
+
     // Fetch reviews linked to this property
     const reviews = await Review.find({ property: property._id })
       .populate('user', 'name email')
@@ -81,7 +154,6 @@ const getPropertyById = async (req, res) => {
       const avg = Number((reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length).toFixed(1));
       payload.rating = avg;
     }
-
     res.json(payload);
   } catch (error) {
     res.status(500).json({ message: error.message });

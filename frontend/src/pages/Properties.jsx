@@ -79,8 +79,8 @@ const Properties = () => {
         }
       });
 
-  const data = await getProperties(queryFilters);
-  const propertyList = data?.properties || data?.data || data || [];
+      const data = await getProperties(queryFilters);
+      const propertyList = data?.properties || data?.data || data || [];
       setProperties(Array.isArray(propertyList) ? propertyList : []);
       setTotalPages(data?.totalPages || 1);
       setTotalProperties(data?.total || propertyList.length);
@@ -376,16 +376,40 @@ const Properties = () => {
             <p className="mt-4 text-gray-600">Loading properties...</p>
           </div>
         ) : properties.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-lg shadow">
-            <p className="text-gray-600 text-lg mb-4">No properties found matching your criteria.</p>
-            {hasActiveFilters && (
-              <button
-                onClick={handleClearFilters}
-                className="text-blue-600 hover:text-blue-700 font-semibold"
-              >
-                Clear filters and try again
-              </button>
-            )}
+          <div className="bg-white rounded-lg shadow p-8">
+            <div className="max-w-xl mx-auto text-center">
+              <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
+                <FaSearch />
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">No results found</h2>
+              <p className="text-gray-600 mb-6">
+                Try adjusting your filters, changing the city, or searching with different keywords.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {hasActiveFilters ? (
+                  <button
+                    onClick={handleClearFilters}
+                    className="px-5 py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
+                  >
+                    Clear filters
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => fetchProperties(1)}
+                    className="px-5 py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
+                  >
+                    Refresh
+                  </button>
+                )}
+                <button
+                  onClick={() => navigate('/')}
+                  className="px-5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-800 font-semibold hover:bg-gray-50 transition"
+                >
+                  Back to Home
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <>

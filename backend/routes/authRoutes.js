@@ -42,7 +42,7 @@ const uploadSingleSafe = (fieldName) => (req, res, next) => {
 // Upload single file field name: profilePicture (wrapped to handle multer errors)
 router.post('/upload-profile-picture', protect, uploadSingleSafe('profilePicture'), uploadProfilePicture);
 router.delete('/profile-picture', protect, removeProfilePicture);
-router.post('/forgotpassword', forgotPassword);
+router.post('/forgot-password', forgotPassword);
 router.put('/resetpassword/:resettoken', resetPassword);
 router.post('/logout', logout);
 

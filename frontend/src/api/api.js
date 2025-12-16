@@ -5,7 +5,7 @@ import axios from 'axios';
  * Base URL is set from environment variable or defaults to localhost
  */
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://stayease-o1si.onrender.com/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL ,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -56,13 +56,8 @@ api.interceptors.response.use(
       
       switch (status) {
         case 401:
-          // Unauthorized - redirect to login
+          // Unauthorized - let callers/contexts handle; avoid hard redirects that can log users out on refresh
           console.warn('Unauthorized access');
-          // Only redirect if not already on login/register page
-          if (!window.location.pathname.includes('/login') && 
-              !window.location.pathname.includes('/register')) {
-            window.location.href = '/login';
-          }
           break;
           
         case 403:

@@ -15,13 +15,19 @@ import {
   FaPhone,
   FaCalendarAlt
 } from 'react-icons/fa';
-import { fetchAllUsers, deleteUser, updateUser } from '../../api/adminService';
+import { fetchAllUsers, deleteUser, updateUser, updateUserPassword } from '../../api/adminService';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', email: '', role: 'user' });
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    role: 'user',
+    newPassword: '',
+    confirmPassword: '',
+  });
   const [error, setError] = useState('');
   
   // Search and Filter
@@ -69,12 +75,14 @@ const UserManagement = () => {
       name: user.name,
       email: user.email,
       role: user.role || 'user',
+      newPassword: '',
+      confirmPassword: '',
     });
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setEditForm({ name: '', email: '', role: 'user' });
+    setEditForm({ name: '', email: '', role: 'user', newPassword: '', confirmPassword: '' });
   };
 
   const handleUpdate = async (id) => {
@@ -84,13 +92,42 @@ const UserManagement = () => {
     }
 
     try {
-      const response = await updateUser(id, editForm);
+      // Update basic fields
+      const userUpdatePayload = {
+        name: editForm.name,
+        email: editForm.email,
+        role: editForm.role,
+      };
+
+      const response = await updateUser(id, userUpdatePayload);
       const updated = response.data || response;
+
+      // Optional password update
+      const hasPasswordChange =
+        (editForm.newPassword && editForm.newPassword.trim().length > 0) ||
+        (editForm.confirmPassword && editForm.confirmPassword.trim().length > 0);
+
+      if (hasPasswordChange) {
+        const newPassword = editForm.newPassword || '';
+        const confirmPassword = editForm.confirmPassword || '';
+
+        if (newPassword.length < 8) {
+          alert('Password must be at least 8 characters');
+          return;
+        }
+        if (newPassword !== confirmPassword) {
+          alert('Passwords do not match');
+          return;
+        }
+
+        await updateUserPassword(id, newPassword, confirmPassword);
+      }
+
       setUsers((prev) =>
         prev.map((u) => (u._id === id ? { ...u, ...updated } : u))
       );
       handleCancelEdit();
-      alert('User updated successfully!');
+      alert(hasPasswordChange ? 'User and password updated successfully!' : 'User updated successfully!');
     } catch (err) {
       alert(err?.response?.data?.message || 'Failed to update user');
     }
@@ -374,19 +411,41 @@ const UserManagement = () => {
                           </select>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap" colSpan={3}>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleUpdate(user._id)}
-                              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
-                            >
-                              Save
-                            </button>
-                            <button
-                              onClick={handleCancelEdit}
-                              className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition"
-                            >
-                              Cancel
-                            </button>
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <input
+                                type="password"
+                                value={editForm.newPassword}
+                                onChange={(e) =>
+                                  setEditForm((f) => ({ ...f, newPassword: e.target.value }))
+                                }
+                                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="New password (optional)"
+                              />
+                              <input
+                                type="password"
+                                value={editForm.confirmPassword}
+                                onChange={(e) =>
+                                  setEditForm((f) => ({ ...f, confirmPassword: e.target.value }))
+                                }
+                                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Confirm new password"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleUpdate(user._id)}
+                                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={handleCancelEdit}
+                                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           </div>
                         </td>
                       </>

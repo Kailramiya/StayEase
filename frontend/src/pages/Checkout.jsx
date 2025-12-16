@@ -77,12 +77,14 @@ const Checkout = () => {
 
   const calculateRent = () => {
     if (!formData.checkIn || !formData.checkOut || !property) return 0;
-    
+
     const checkIn = new Date(formData.checkIn);
     const checkOut = new Date(formData.checkOut);
-    const months = Math.max(1, Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24 * 30)));
-    
-    return months * (property.price?.monthly || 0);
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const days = Math.max(1, Math.ceil((checkOut - checkIn) / msPerDay));
+
+    const dailyRate = (property.price?.monthly || 0) / 30; // derive daily from monthly
+    return Math.round(dailyRate * days);
   };
 
   const totalAmount = calculateRent() + (property?.price?.security || 0);
@@ -113,15 +115,19 @@ const Checkout = () => {
 
     setBookingLoading(true);
     try {
-      // Backend expects propertyId and months instead of checkOut
+      // Backend now expects days (legacy months also supported)
       const checkInDate = new Date(formData.checkIn);
       const checkOutDate = new Date(formData.checkOut);
-      const months = Math.max(1, Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24 * 30)));
+      const msPerDay = 1000 * 60 * 60 * 24;
+      const days = Math.max(1, Math.ceil((checkOutDate - checkInDate) / msPerDay));
+
+      const months = Math.max(1, Math.ceil(days / 30)); // legacy compatibility
 
       const bookingData = {
         propertyId: propertyId,
         checkIn: formData.checkIn,
-        months,
+        days,
+        months, // send both to satisfy older backend deployments
         tenantName: formData.tenantName,
         tenantEmail: formData.tenantEmail,
         tenantPhone: formData.tenantPhone,
@@ -377,15 +383,17 @@ const Checkout = () => {
 
               <div className="space-y-3">
                 <div className="flex justify-between text-gray-700">
-                  <span>Monthly Rent</span>
-                  <span>₹{property?.price?.monthly?.toLocaleString()}</span>
+                  <span>Daily Rate (derived)</span>
+                  <span>
+                    ₹{(((property?.price?.monthly || 0) / 30) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </span>
                 </div>
 
                 {formData.checkIn && formData.checkOut && (
                   <div className="flex justify-between text-gray-700">
                     <span>Duration</span>
                     <span>
-                      {Math.max(1, Math.ceil((new Date(formData.checkOut) - new Date(formData.checkIn)) / (1000 * 60 * 60 * 24 * 30)))} month(s)
+                      {Math.max(1, Math.ceil((new Date(formData.checkOut) - new Date(formData.checkIn)) / (1000 * 60 * 60 * 24)))} day(s)
                     </span>
                   </div>
                 )}

@@ -5,6 +5,7 @@ const {
   getAllUsers,
   deleteUser,
   updateUser,
+  updateUserPassword,
   getAllProperties,
   createProperty,
   updateProperty,
@@ -20,6 +21,7 @@ router.use(admin);
 router.get('/users', getAllUsers);
 router.delete('/users/:id', deleteUser);
 router.put('/users/:id', updateUser);
+router.put('/users/:id/password', updateUserPassword);
 
 // Property management
 router.get('/properties', getAllProperties);

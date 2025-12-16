@@ -212,7 +212,7 @@ const AddReview = ({ propertyId, onReviewAdded }) => {
         </button>
       </form>
 
-      <style jsx>{`
+      <style>{`
         @keyframes fadeIn {
           from {
             opacity: 0;

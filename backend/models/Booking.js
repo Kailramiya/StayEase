@@ -20,9 +20,16 @@ const bookingSchema = new mongoose.Schema(
       type: Date,
       required: [true, 'Please provide check-out date'],
     },
+    // Legacy field (was required). Kept for backward compatibility but no longer required.
     months: {
       type: Number,
-      required: true,
+      required: false,
+    },
+    // New canonical duration field (in days)
+    days: {
+      type: Number,
+      required: [true, 'Please provide duration in days'],
+      min: [1, 'Duration must be at least 1 day'],
     },
     totalPrice: {
       type: Number,
@@ -36,6 +43,11 @@ const bookingSchema = new mongoose.Schema(
     payment: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Payment',
+    },
+    // Internal flag to keep property.bookingsCount idempotent per booking
+    bookingsCountIncremented: {
+      type: Boolean,
+      default: false,
     },
     addOns: [{
       type: mongoose.Schema.Types.ObjectId,

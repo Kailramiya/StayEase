@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { registerUser } from '../../api/authService';
+import { registerUser, getCurrentUser } from '../../api/authService';
+import useAuth from '../../hooks/useAuth';
 import { 
   FaEye, 
   FaEyeSlash, 
@@ -28,6 +29,7 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, message: '', color: '' });
 
   const calculatePasswordStrength = (password) => {
@@ -112,6 +114,8 @@ const Signup = () => {
     }
   };
 
+  const { setUser } = useAuth();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const eMap = validate();
@@ -123,10 +127,22 @@ const Signup = () => {
     try {
       setLoading(true);
       const { confirmPassword, ...payload } = formData;
-  const data = await registerUser({ ...payload, role });
-  // persist user in cookie (7 days)
-  document.cookie = `user=${encodeURIComponent(JSON.stringify(data))}; path=/; SameSite=Lax; max-age=${7 * 24 * 60 * 60}`;
-      navigate(role === 'admin' ? '/admin' : '/dashboard', { replace: true });
+      const data = await registerUser({ ...payload, role });
+
+      // Fetch current user from backend (will also update cookie) and set in context
+      try {
+        const current = await getCurrentUser();
+        setUser(current);
+      } catch (err) {
+        // non-fatal - continue
+        console.warn('Failed to fetch current user after registration', err);
+      }
+
+      // Show success message before redirecting home
+      setSuccess(true);
+      setTimeout(() => {
+        navigate('/', { replace: true });
+      }, 1500);
     } catch (err) {
       const status = err?.response?.status;
       const data = err?.response?.data || {};
@@ -203,8 +219,21 @@ const Signup = () => {
             </div>
           </div>
 
+          {/* Success Message */}
+          {success && (
+            <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded-lg animate-fadeIn">
+              <div className="flex items-center gap-3">
+                <FaCheckCircle className="text-green-500 text-xl flex-shrink-0" />
+                <div>
+                  <p className="text-green-800 font-semibold">Account Created Successfully!</p>
+                  <p className="text-green-700 text-sm mt-1">Redirecting to your dashboard...</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Form Error */}
-          {errors.form && (
+          {errors.form && !success && (
             <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
               <p className="text-red-700 text-sm font-medium">{errors.form}</p>
             </div>
@@ -438,13 +467,14 @@ const Signup = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || success}
               className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30"
             >
-              {loading && (
+              {loading && !success && (
                 <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
               )}
-              {loading ? 'Creating Account...' : `Sign Up as ${role === 'admin' ? 'Admin' : 'User'}`}
+              {success && <FaCheckCircle />}
+              {success ? 'Account Created!' : loading ? 'Creating Account...' : `Sign Up as ${role === 'admin' ? 'Admin' : 'User'}`}
             </button>
           </form>
 
