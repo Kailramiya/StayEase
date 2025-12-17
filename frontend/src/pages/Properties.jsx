@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import PropertyCard from '../components/property/PropertyCard';
 import AIRecommendationCard from '../components/property/AIRecommendationCard';
 import { getProperties } from '../api/propertyService';
 import { getFavorites } from '../api/favoriteService';
@@ -482,9 +481,27 @@ const Properties = () => {
                     />
                   ))
                 : properties.map((property) => (
-                    <PropertyCard
+                    <AIRecommendationCard
                       key={property._id}
                       property={property}
+                      ai={buildAiSignalsForProperty({
+                        property,
+                        user,
+                        favorites,
+                        lastSearch: loadLastSearch(),
+                        activeFilters: {
+                          search: filters.search,
+                          city: filters.city,
+                          propertyType: filters.propertyType,
+                          bedrooms: filters.bedrooms,
+                          bathrooms: filters.bathrooms,
+                          furnished: filters.furnished,
+                          availability: filters.availability,
+                          minPrice: filters.priceMin,
+                          maxPrice: filters.priceMax,
+                        },
+                        mode: user ? 'auto' : 'preview',
+                      })}
                       isFavorite={favorites.includes(String(property._id))}
                       onFavoriteToggle={handleFavoriteToggle}
                     />

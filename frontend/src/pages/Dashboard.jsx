@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   FaCalendarCheck, 
@@ -13,8 +13,9 @@ import {
 } from 'react-icons/fa';
 import { getMyBookings } from '../api/bookingService';
 import { getFavorites } from '../api/favoriteService';
-import PropertyCard from '../components/property/PropertyCard';
+import AIRecommendationCard from '../components/property/AIRecommendationCard';
 import useAuth from '../hooks/useAuth';
+import { buildAiSignalsForProperty, loadLastSearch } from '../utils/aiRecommendations';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -24,6 +25,14 @@ const Dashboard = () => {
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [loadingFavorites, setLoadingFavorites] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+
+  const favoriteIds = useMemo(() => {
+    return (favorites || [])
+      .map((f) => String(f?.property?._id || f?.property || ''))
+      .filter(Boolean);
+  }, [favorites]);
+
+  const lastSearch = useMemo(() => loadLastSearch(), []);
 
   useEffect(() => {
     if (!user) {
@@ -330,10 +339,19 @@ const Dashboard = () => {
           {favorites.map((fav) => {
             const property = fav.property;
             if (!property || !property._id) return null;
+
+            const ai = buildAiSignalsForProperty({
+              property,
+              user,
+              favorites: favoriteIds,
+              lastSearch,
+              mode: user ? 'auto' : 'preview',
+            });
             return (
-              <PropertyCard
+              <AIRecommendationCard
                 key={fav._id || property._id}
                 property={property}
+                ai={ai}
                 isFavorite={true}
                 onFavoriteToggle={handleFavoriteToggle}
               />

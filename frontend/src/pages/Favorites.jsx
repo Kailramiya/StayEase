@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaHeart, FaHeartBroken, FaFilter, FaTh, FaList } from 'react-icons/fa';
 import { getFavorites } from '../api/favoriteService';
-import PropertyCard from '../components/property/PropertyCard';
+import AIRecommendationCard from '../components/property/AIRecommendationCard';
 import useAuth from '../hooks/useAuth';
+import { buildAiSignalsForProperty, loadLastSearch } from '../utils/aiRecommendations';
 
 const Favorites = () => {
   const { user } = useAuth();
@@ -14,6 +15,14 @@ const Favorites = () => {
   const [error, setError] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [sortBy, setSortBy] = useState('recent'); // 'recent', 'price-low', 'price-high', 'rating'
+
+  const favoriteIds = useMemo(() => {
+    return (favorites || [])
+      .map((f) => String(f?.property?._id || f?.property || ''))
+      .filter(Boolean);
+  }, [favorites]);
+
+  const lastSearch = useMemo(() => loadLastSearch(), []);
 
   useEffect(() => {
     if (!user) {
@@ -189,10 +198,19 @@ const Favorites = () => {
             const property = fav.property;
             if (!property || !property._id) return null;
 
+            const ai = buildAiSignalsForProperty({
+              property,
+              user,
+              favorites: favoriteIds,
+              lastSearch,
+              mode: user ? 'auto' : 'preview',
+            });
+
             return (
               <div key={fav._id || property._id}>
-                <PropertyCard
+                <AIRecommendationCard
                   property={property}
+                  ai={ai}
                   isFavorite={true}
                   onFavoriteToggle={handleFavoriteToggle}
                 />

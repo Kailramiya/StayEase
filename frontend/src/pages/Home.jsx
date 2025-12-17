@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import PropertyCard from '../components/property/PropertyCard';
+import AIRecommendationCard from '../components/property/AIRecommendationCard';
 import AIRecommendationsSection from '../components/property/AIRecommendationsSection';
 import api from '../api/api';
 import { getFavorites } from '../api/favoriteService';
 import useAuth from '../hooks/useAuth';
-import { buildAiRecommendations, loadLastSearch, saveLastSearch } from '../utils/aiRecommendations';
+import { buildAiRecommendations, buildAiSignalsForProperty, loadLastSearch, saveLastSearch } from '../utils/aiRecommendations';
 
 const Home = () => {
   const [recentProperties, setRecentProperties] = useState([]);
@@ -82,6 +82,8 @@ const Home = () => {
 
   const visibleRecent = useMemo(() => (recentProperties || []).slice(0, 6), [recentProperties]);
   const visibleTrending = useMemo(() => (trendingProperties || []).slice(0, 6), [trendingProperties]);
+
+  const lastSearch = useMemo(() => loadLastSearch(), []);
 
   // AI-signaling: simulate personalized recommendations from existing data (no new backend APIs)
   const aiRecommendations = useMemo(() => {
@@ -265,10 +267,17 @@ const Home = () => {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   {visibleRecent.map((property) => (
-                    <PropertyCard
+                    <AIRecommendationCard
                       key={property._id}
                       property={property}
-                      isFavorite={favorites.includes(property._id)}
+                      ai={buildAiSignalsForProperty({
+                        property,
+                        user,
+                        favorites,
+                        lastSearch,
+                        mode: user ? 'auto' : 'preview',
+                      })}
+                      isFavorite={favorites.includes(String(property._id))}
                       onFavoriteToggle={handleFavoriteToggle}
                     />
                   ))}
@@ -290,10 +299,17 @@ const Home = () => {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   {visibleTrending.map((property) => (
-                    <PropertyCard
+                    <AIRecommendationCard
                       key={property._id}
                       property={property}
-                      isFavorite={favorites.includes(property._id)}
+                      ai={buildAiSignalsForProperty({
+                        property,
+                        user,
+                        favorites,
+                        lastSearch,
+                        mode: user ? 'auto' : 'preview',
+                      })}
+                      isFavorite={favorites.includes(String(property._id))}
                       onFavoriteToggle={handleFavoriteToggle}
                     />
                   ))}
