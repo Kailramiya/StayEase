@@ -55,77 +55,143 @@ const pickCue = (scorePct) => {
   return { label: 'Trending Prediction 📊', tone: 'from-purple-600 to-indigo-600' };
 };
 
-export const buildAiRecommendations = ({
-  properties = [],
+const normalizeFilters = (filters) => {
+  const f = filters || {};
+  return {
+    city: normalizeText(f.city),
+    search: normalizeText(f.search),
+    propertyType: normalizeText(f.propertyType),
+    bedrooms: f.bedrooms ? Number(f.bedrooms) : null,
+    bathrooms: f.bathrooms ? Number(f.bathrooms) : null,
+    furnished: normalizeText(f.furnished),
+    availability: normalizeText(f.availability),
+    minPrice: f.minPrice ? Number(f.minPrice) : null,
+    maxPrice: f.maxPrice ? Number(f.maxPrice) : null,
+  };
+};
+
+export const buildAiSignalsForProperty = ({
+  property,
   user = null,
   favorites = [],
   lastSearch = null,
-  limit = 6,
-  mode = 'auto', // 'auto' | 'preview'
+  activeFilters = null,
+  mode = 'auto',
 } = {}) => {
+  const p = property;
   const favSet = new Set((favorites || []).map((x) => String(x)));
   const search = lastSearch || loadLastSearch();
+  const filters = normalizeFilters(activeFilters);
 
   const searchCity = normalizeText(search?.city);
   const searchQuery = normalizeText(search?.query);
   const hasSearch = Boolean(searchCity || searchQuery);
 
+  const city = normalizeText(p?.address?.city);
+  const title = normalizeText(p?.title);
+  const desc = normalizeText(p?.description);
+
+  const cityMatch = (filters.city && city === filters.city) || (searchCity && city === searchCity);
+  const queryMatch =
+    (filters.search && (title.includes(filters.search) || desc.includes(filters.search) || city.includes(filters.search))) ||
+    (searchQuery && (title.includes(searchQuery) || desc.includes(searchQuery) || city.includes(searchQuery)));
+
+  // Backend provides aiLabel (heuristic), but we don’t rely on it existing.
+  const aiLabel = String(p?.aiLabel || '').toLowerCase();
+  const isHighDemand = aiLabel.includes('high demand') || (Number(p?.views) || 0) > 50;
+  const isBestValue = aiLabel.includes('best value') || (Number(p?.price?.monthly) || 0) > 0;
+  const isFavorite = favSet.has(String(p?._id));
+
+  // Transparent heuristic score → displayed as “match %”
+  // Uses BOTH search intent and active filters as signals.
+  let score = 0;
+  if (cityMatch) score += 40;
+  if (queryMatch) score += 22;
+  if (isFavorite) score += 14;
+  if (isHighDemand) score += 10;
+  if (isBestValue) score += 8;
+
+  // Filter-alignment boosters (only if user set those filters)
+  if (filters.propertyType && normalizeText(p?.propertyType) === filters.propertyType) score += 6;
+  if (Number.isFinite(filters.bedrooms) && (Number(p?.bedrooms) || 0) >= filters.bedrooms) score += 5;
+  if (Number.isFinite(filters.bathrooms) && (Number(p?.bathrooms) || 0) >= filters.bathrooms) score += 4;
+
+  // Stable jitter based on id
+  const idStr = String(p?._id || '');
+  let hash = 0;
+  for (let i = 0; i < idStr.length; i++) hash = (hash * 31 + idStr.charCodeAt(i)) % 97;
+  score += hash % 7;
+
+  const scorePct = clamp(Math.round(score), 55, 96);
+  const cue = pickCue(scorePct);
+
+  const hasActiveFilters = Boolean(
+    filters.city ||
+      filters.search ||
+      filters.propertyType ||
+      Number.isFinite(filters.bedrooms) ||
+      Number.isFinite(filters.bathrooms) ||
+      filters.furnished ||
+      filters.availability ||
+      Number.isFinite(filters.minPrice) ||
+      Number.isFinite(filters.maxPrice)
+  );
+
+  const reason = hasActiveFilters
+    ? 'Matches your filters'
+    : pickReason({ hasSearch, cityMatch, isHighDemand, isBestValue, isFavorite });
+
+  let explanation = 'Recommended by a smart heuristic match (value + popularity signals).';
+  if (hasActiveFilters) {
+    if (filters.city) {
+      explanation = `Recommended because it matches your filter for ${filters.city}.`;
+    } else if (filters.search) {
+      explanation = 'Recommended because it matches your search filter.';
+    } else {
+      explanation = 'Recommended because it aligns with your selected filters.';
+    }
+  } else if (hasSearch && cityMatch) {
+    explanation = `Recommended because you viewed or searched similar properties in ${p?.address?.city || 'this city'}.`;
+  } else if (hasSearch && queryMatch) {
+    explanation = 'Recommended because it matches your recent search intent.';
+  } else if (isHighDemand) {
+    explanation = 'Recommended because it’s trending based on recent interest.';
+  }
+
+  const preview = mode === 'preview' || !user;
+
+  return {
+    matchPercent: scorePct,
+    reasonTag: reason,
+    explanation,
+    cueLabel: cue.label,
+    cueTone: cue.tone,
+    preview,
+  };
+};
+
+export const buildAiRecommendations = ({
+  properties = [],
+  user = null,
+  favorites = [],
+  lastSearch = null,
+  activeFilters = null,
+  limit = 6,
+  mode = 'auto', // 'auto' | 'preview'
+} = {}) => {
   const scored = (properties || [])
     .filter(Boolean)
     .map((p) => {
-      const city = normalizeText(p?.address?.city);
-      const title = normalizeText(p?.title);
-      const desc = normalizeText(p?.description);
-
-      const cityMatch = searchCity && city === searchCity;
-      const queryMatch = searchQuery && (title.includes(searchQuery) || desc.includes(searchQuery) || city.includes(searchQuery));
-
-      // Backend provides aiLabel (heuristic), but we don’t rely on it existing.
-      const aiLabel = String(p?.aiLabel || '').toLowerCase();
-      const isHighDemand = aiLabel.includes('high demand') || (Number(p?.views) || 0) > 50;
-      const isBestValue = aiLabel.includes('best value') || (Number(p?.price?.monthly) || 0) > 0;
-
-      const isFavorite = favSet.has(String(p?._id));
-
-      // Transparent heuristic score → displayed as “match %”
-      // Weighted for intent match + light popularity/value signals.
-      let score = 0;
-      if (cityMatch) score += 42;
-      if (queryMatch) score += 24;
-      if (isFavorite) score += 16;
-      if (isHighDemand) score += 10;
-      if (isBestValue) score += 8;
-
-      // Add a small deterministic jitter based on id (stable across renders)
-      const idStr = String(p?._id || '');
-      let hash = 0;
-      for (let i = 0; i < idStr.length; i++) hash = (hash * 31 + idStr.charCodeAt(i)) % 97;
-      score += hash % 7; // 0..6
-
-      const scorePct = clamp(Math.round(score), 55, 96);
-      const cue = pickCue(scorePct);
-      const reason = pickReason({ hasSearch, cityMatch, isHighDemand, isBestValue, isFavorite });
-
-      const explanation = hasSearch && cityMatch
-        ? `Recommended because you searched for places in ${p?.address?.city || 'this city'}.`
-        : hasSearch && queryMatch
-          ? 'Recommended because it matches your recent search intent.'
-          : isHighDemand
-            ? 'Recommended because it’s trending based on recent interest.'
-            : 'Recommended by a smart heuristic match (value + popularity signals).';
-
-      const preview = mode === 'preview' || !user;
-
       return {
         property: p,
-        ai: {
-          matchPercent: scorePct,
-          reasonTag: reason,
-          explanation,
-          cueLabel: cue.label,
-          cueTone: cue.tone,
-          preview,
-        },
+        ai: buildAiSignalsForProperty({
+          property: p,
+          user,
+          favorites,
+          lastSearch,
+          activeFilters,
+          mode,
+        }),
       };
     })
     .sort((a, b) => (b.ai.matchPercent || 0) - (a.ai.matchPercent || 0));

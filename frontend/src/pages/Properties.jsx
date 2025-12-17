@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PropertyCard from '../components/property/PropertyCard';
+import AIRecommendationCard from '../components/property/AIRecommendationCard';
 import { getProperties } from '../api/propertyService';
 import { getFavorites } from '../api/favoriteService';
 import useAuth from '../hooks/useAuth';
 import { FaFilter, FaSearch, FaTimes, FaSortAmountDown } from 'react-icons/fa';
+import { buildAiSignalsForProperty, loadLastSearch, saveLastSearch } from '../utils/aiRecommendations';
 
 const Properties = () => {
   const [searchParams] = useSearchParams();
@@ -33,6 +35,34 @@ const Properties = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProperties, setTotalProperties] = useState(0);
+
+  // AI-signaling: attach match/reason/why UI on the list page when AI sort is active.
+  // This uses transparent heuristics that incorporate active filters.
+  const aiRows = useMemo(() => {
+    if (sortBy !== 'ai') return [];
+    const lastSearch = loadLastSearch();
+    return (properties || []).map((p) => ({
+      property: p,
+      ai: buildAiSignalsForProperty({
+        property: p,
+        user,
+        favorites,
+        lastSearch,
+        activeFilters: {
+          search: filters.search,
+          city: filters.city,
+          propertyType: filters.propertyType,
+          bedrooms: filters.bedrooms,
+          bathrooms: filters.bathrooms,
+          furnished: filters.furnished,
+          availability: filters.availability,
+          minPrice: filters.priceMin,
+          maxPrice: filters.priceMax,
+        },
+        mode: user ? 'auto' : 'preview',
+      }),
+    }));
+  }, [favorites, filters, properties, sortBy, user]);
 
   const fetchProperties = async (pageOverride) => {
     setLoading(true);
@@ -156,6 +186,10 @@ const Properties = () => {
 
   const handleSearch = (e) => {
     e?.preventDefault();
+
+    // AI-signaling: persist intent so “Why this?” can reference it.
+    saveLastSearch({ city: filters.city, query: filters.search });
+
     // reset to first page and fetch with the updated search term
     setPage(1);
     fetchProperties(1);
@@ -427,15 +461,34 @@ const Properties = () => {
           </div>
         ) : (
           <>
+            {sortBy === 'ai' && (
+              <div className="mb-6 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 via-white to-purple-50 p-4">
+                <p className="text-sm font-semibold text-slate-900">AI ranking is active</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Results are scored against your current filters. Open “Why this?” on any card to see the explanation.
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {properties.map((property) => (
-                <PropertyCard
-                  key={property._id}
-                  property={property}
-                  isFavorite={favorites.includes(String(property._id))}
-                  onFavoriteToggle={handleFavoriteToggle}
-                />
-              ))}
+              {sortBy === 'ai'
+                ? aiRows.map(({ property, ai }) => (
+                    <AIRecommendationCard
+                      key={property._id}
+                      property={property}
+                      ai={ai}
+                      isFavorite={favorites.includes(String(property._id))}
+                      onFavoriteToggle={handleFavoriteToggle}
+                    />
+                  ))
+                : properties.map((property) => (
+                    <PropertyCard
+                      key={property._id}
+                      property={property}
+                      isFavorite={favorites.includes(String(property._id))}
+                      onFavoriteToggle={handleFavoriteToggle}
+                    />
+                  ))}
             </div>
 
             {/* Pagination */}
