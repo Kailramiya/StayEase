@@ -131,49 +131,70 @@ export const buildAiSignalsForProperty = ({
   const monthly = Number(p?.price?.monthly) || 0;
   const rating = Number(p?.rating) || 0;
 
+  // If backend provided an aiScore (0..100), prefer it as the base signal.
+  // This keeps match % stable and aligned with the backend ranking.
+  const backendAiScoreRaw = Number(p?.aiScore);
+  const hasBackendAiScore = Number.isFinite(backendAiScoreRaw);
+
   const isHighDemand = aiLabel.includes('high demand') || (ctx.avgViews > 0 ? viewsNum > ctx.avgViews : viewsNum > 50);
   const isBestValue = aiLabel.includes('best value') || (ctx.avgPrice > 0 && monthly > 0 ? monthly <= 0.85 * ctx.avgPrice : false);
   const isFavorite = favSet.has(String(p?._id));
 
-  // Transparent heuristic score → displayed as “match %”
-  // Uses BOTH search intent and active filters as signals, plus lightweight ranking signals.
-  let score = 0;
-  if (cityMatch) score += 34;
-  if (queryMatch) score += 18;
-  if (isFavorite) score += 12;
+  let scorePct;
 
-  // Popularity signal (relative)
-  if (ctx.maxViews > 0) score += clamp((viewsNum / ctx.maxViews) * 16, 0, 16);
-  else if (viewsNum > 0) score += 4;
+  if (hasBackendAiScore) {
+    // Start from backend aiScore then apply small, explainable boosts.
+    let pct = clamp(Math.round(backendAiScoreRaw), 0, 100);
 
-  // Rating signal
-  if (rating > 0) score += clamp((rating / 5) * 18, 0, 18);
+    if (cityMatch) pct += 6;
+    if (queryMatch) pct += 4;
+    if (isFavorite) pct += 3;
 
-  // Value signal (cheaper-than-average gets a boost; expensive gets smaller)
-  if (ctx.avgPrice > 0 && monthly > 0) {
-    const ratio = monthly / ctx.avgPrice; // 1.0 means average
-    // ratio 0.6 => strong boost, ratio 1.4 => minimal boost
-    const valueBoost = clamp((1.3 - ratio) * 10, 0, 10);
-    score += valueBoost;
+    if (isHighDemand) pct += 2;
+    if (isBestValue) pct += 2;
+
+    // Filter-alignment boosters (only if user set those filters)
+    if (filters.propertyType && normalizeText(p?.propertyType) === filters.propertyType) pct += 3;
+    if (Number.isFinite(filters.bedrooms) && (Number(p?.bedrooms) || 0) >= filters.bedrooms) pct += 2;
+    if (Number.isFinite(filters.bathrooms) && (Number(p?.bathrooms) || 0) >= filters.bathrooms) pct += 2;
+
+    // Keep a sensible UX range.
+    scorePct = clamp(pct, 35, 99);
+  } else {
+    // Transparent heuristic score → displayed as “match %”
+    // Uses BOTH search intent and active filters as signals, plus lightweight ranking signals.
+    let score = 0;
+    if (cityMatch) score += 34;
+    if (queryMatch) score += 18;
+    if (isFavorite) score += 12;
+
+    // Popularity signal (relative)
+    if (ctx.maxViews > 0) score += clamp((viewsNum / ctx.maxViews) * 16, 0, 16);
+    else if (viewsNum > 0) score += 4;
+
+    // Rating signal
+    if (rating > 0) score += clamp((rating / 5) * 18, 0, 18);
+
+    // Value signal (cheaper-than-average gets a boost; expensive gets smaller)
+    if (ctx.avgPrice > 0 && monthly > 0) {
+      const ratio = monthly / ctx.avgPrice; // 1.0 means average
+      // ratio 0.6 => strong boost, ratio 1.4 => minimal boost
+      const valueBoost = clamp((1.3 - ratio) * 10, 0, 10);
+      score += valueBoost;
+    }
+
+    if (isHighDemand) score += 6;
+    if (isBestValue) score += 6;
+
+    // Filter-alignment boosters (only if user set those filters)
+    if (filters.propertyType && normalizeText(p?.propertyType) === filters.propertyType) score += 6;
+    if (Number.isFinite(filters.bedrooms) && (Number(p?.bedrooms) || 0) >= filters.bedrooms) score += 5;
+    if (Number.isFinite(filters.bathrooms) && (Number(p?.bathrooms) || 0) >= filters.bathrooms) score += 4;
+
+    // Convert raw score to a stable % range with enough spread.
+    scorePct = clamp(Math.round(42 + score), 35, 96);
   }
 
-  if (isHighDemand) score += 6;
-  if (isBestValue) score += 6;
-
-  // Filter-alignment boosters (only if user set those filters)
-  if (filters.propertyType && normalizeText(p?.propertyType) === filters.propertyType) score += 6;
-  if (Number.isFinite(filters.bedrooms) && (Number(p?.bedrooms) || 0) >= filters.bedrooms) score += 5;
-  if (Number.isFinite(filters.bathrooms) && (Number(p?.bathrooms) || 0) >= filters.bathrooms) score += 4;
-
-  // Stable jitter based on id
-  const idStr = String(p?._id || '');
-  let hash = 0;
-  for (let i = 0; i < idStr.length; i++) hash = (hash * 31 + idStr.charCodeAt(i)) % 97;
-  score += hash % 7;
-
-  // Convert raw score to a stable % range with enough spread.
-  // (No hard 55% floor unless signals are truly absent.)
-  const scorePct = clamp(Math.round(42 + score), 35, 96);
   const cue = pickCue(scorePct);
 
   const hasActiveFilters = Boolean(
