@@ -1,185 +1,188 @@
-# StayEase
+# 🏡 StayEase — Property Rental & Booking Platform (AI-Assisted)
 
->A minimal property rental / bookings platform (full-stack example) — React + Vite frontend and Node/Express + MongoDB backend.
+🔗 **Live Demo:** https://stay-ease-frontend-one.vercel.app/  
+💻 **GitHub Repository:** https://github.com/Kailramiya/StayEase  
 
-This repository contains a small rental booking application with user auth, bookings, payments (local/placeholder), contact owner, favorites, and basic admin features.
+StayEase is a **full-stack property rental and booking platform** designed to help users discover, evaluate, and book rental properties efficiently.  
+Unlike basic listing platforms, StayEase introduces an **AI-assisted ranking system** that intelligently surfaces relevant properties instead of static, unordered results.
 
----
-
-## Quick overview
-
-- Frontend: React (Vite), Tailwind CSS, uses an axios API wrapper and cookie-based client session persistence.
-- Backend: Node.js, Express, MongoDB (Mongoose). Authentication with JWT, email utilities (NodeMailer), Cloudinary image uploads.
-
-Project layout (top-level)
-- `frontend/` — React app (UI, routes, pages, contexts)
-- `backend/` — Express API (routes, controllers, models, middleware)
-
-Live demo
-
-- https://stay-ease-frontend-one.vercel.app/ 
+This project is built with **production-grade engineering principles** — security, performance, scalability, and explainability.
 
 ---
 
-## Features
+## ✨ Key Features
 
-- User registration & login (JWT)
-- Profile management, upload profile picture (Cloudinary)
-- Create and manage bookings (local payment flow by default)
-- Contact property owner (server-side email)
-- Favorites, reviews, and admin management pages
-- Cookie-based auth persistence (client-side cookie storing the user object)
-
----
-
-## Tech stack
-
-- Frontend: React 19, Vite, React Router, Tailwind CSS
-- Backend: Node.js, Express, Mongoose (MongoDB)
-- Utilities: Axios, Cloudinary SDK, Nodemailer
+- 🔐 Secure authentication using **JWT with httpOnly cookies**
+- 🤖 **AI-assisted property ranking** based on user behavior signals
+- ⚡ **Redis caching** for fast, scalable read-heavy APIs
+- 🏠 Property listings with search, filters, favorites, and reviews
+- 📅 Booking lifecycle management (pending → confirmed → cancelled)
+- 📊 Explainable recommendations (not black-box AI)
+- 🚀 Deployed frontend with realistic Indian demo data
 
 ---
 
-## Quick start (local development)
+## 🧠 AI-Assisted Ranking (Core Highlight)
 
-Prerequisites
-- Node.js (v18+ recommended)
-- npm
-- MongoDB (remote or local)
+StayEase implements a **deterministic, explainable AI-assisted ranking system** inspired by real-world recommendation engines.
 
-1) Clone the repo and open two terminals — one for backend and one for frontend.
+Instead of using black-box ML models (which require large datasets), properties are ranked using **weighted behavioral signals**:
 
-Backend
+- Views (popularity)
+- Ratings & reviews (quality)
+- Booking activity (demand)
+- Recency (freshness)
+- Price relevance
 
-```powershell
-cd c:\Users\hp\OneDrive\Desktop\projects\StayEase\backend
-npm install
-# create a .env file (see section below) then:
-npm start
-```
+Each property receives an **AI score**, which is used to:
+- Rank listings intelligently
+- Display badges like **“Recommended”** and **“Trending”**
+- Provide user-visible explanations such as *“Based on popularity and user interest”*
 
-Frontend
+✅ This approach is:
+- Interpretable  
+- Testable  
+- Production-safe  
 
-```powershell
-cd c:\Users\hp\OneDrive\Desktop\projects\StayEase\frontend
+---
+
+## ⚡ Performance Optimization with Redis
+
+To handle read-heavy traffic efficiently:
+
+- Redis is used to cache:
+  - Property listings
+  - Search and filter results
+- Cache keys are generated using query parameters (filters, pagination, sorting)
+- Automatic fallback to MongoDB if Redis is unavailable
+- Cache invalidation on property create/update/delete
+
+This significantly improves response consistency under repeated queries.
+
+---
+
+## 🔐 Authentication & Security
+
+- JWT-based authentication
+- Tokens stored in **httpOnly cookies** (prevents XSS attacks)
+- Secure CORS configuration
+- Role-based access control (User / Admin)
+- Centralized error handling
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+- React
+- Vite
+- Tailwind CSS
+- Axios
+
+### Backend
+- Node.js
+- Express.js
+- MongoDB (Mongoose)
+- Redis
+
+### Other Tools
+- JWT
+- Cloudinary (image uploads)
+- Razorpay (payment integration)
+- dotenv (environment management)
+
+---
+
+## 🗄️ Database Design
+
+- **Users** — authentication, roles, favorites
+- **Properties** — listings, pricing, amenities, views, ratings
+- **Reviews** — user feedback and ratings
+- **Bookings** — booking lifecycle and payment state
+
+Aggregated fields like average rating and review count are stored to avoid expensive queries.
+
+---
+
+## 🚀 Deployment
+
+- **Frontend:** Vercel  
+- **Backend:** Deployed separately with environment-based configuration
+- **Services:** MongoDB Atlas, Redis, Cloudinary
+
+---
+
+## 📂 Project Structure
+
+StayEase/
+├── backend/
+│ ├── controllers/
+│ ├── models/
+│ ├── routes/
+│ ├── middleware/
+│ └── scripts/
+├── frontend/
+│ ├── components/
+│ ├── pages/
+│ ├── api/
+│ └── hooks/
+└── README.md
+
+yaml
+Copy code
+
+---
+
+## ▶️ Running Locally
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/Kailramiya/StayEase
+cd StayEase
+2. Backend setup
+bash
+Copy code
+cd backend
 npm install
 npm run dev
-```
+Create a .env file:
 
-Open http://localhost:5173 (Vite default) for the frontend and the backend server logs will show the API port (default 5000).
+env
+Copy code
+MONGO_URI=your_mongodb_uri
+JWT_SECRET=your_jwt_secret
+REDIS_URL=your_redis_url
+3. Frontend setup
+bash
+Copy code
+cd frontend
+npm install
+npm run dev
+📈 What This Project Demonstrates
+Full-stack ownership from database to deployment
 
----
+Secure authentication & API design
 
-## Environment variables
+Performance optimization using caching
 
-Create a `.env` file in `backend/` with at least the following values:
+Explainable AI-inspired ranking systems
 
-```
-MONGODB_URI=your_mongodb_connection_string
-JWT_SECRET=some_long_secret
-CLIENT_URL=http://localhost:5173
-ALLOWED_ORIGINS=http://localhost:5173
-# Optional: Cloudinary (for profile uploads)
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
-# Optional: SMTP for emails
-SMTP_HOST=
-SMTP_PORT=
-SMTP_USER=
-SMTP_PASS=
-# Optional: Razorpay keys (only if you use Razorpay)
-RAZORPAY_KEY_ID=
-RAZORPAY_KEY_SECRET=
-```
+Real-world engineering tradeoffs (AI vs ML)
 
-Frontend env (create `.env` in `frontend/` or set variables for your host):
+🧩 Future Improvements
+Personalized recommendations per user
 
-```
-VITE_API_BASE_URL=https://stayease-o1si.onrender.com/api
-# When running locally:
-# VITE_API_BASE_URL=http://localhost:5000/api
-```
+Advanced text / semantic search
 
-Notes
-- `ALLOWED_ORIGINS` is a comma-separated list used by backend CORS middleware. Add your deployed frontend origin (for example `https://your-frontend.vercel.app`) before deploying.
+Background jobs for analytics and notifications
 
----
+Admin dashboards with insights
 
-## Deployment notes
+👨‍💻 Author
+Aman Kumar
+B.Tech Student | Full-Stack Developer
 
-- Typical setup used by this project:
-	- Frontend deployed to Vercel (or Netlify)
-	- Backend deployed to Render (or Heroku, DigitalOcean App Platform)
+🔗 GitHub: https://github.com/Kailramiya
+🔗 Live Demo: https://stay-ease-frontend-one.vercel.app/
 
-Key deployment tips
-- CORS: on the backend ensure `ALLOWED_ORIGINS` includes your frontend origin (when credentials are used the backend must return the explicit origin, not `*`).
-- Env vars: never commit `.env` to git; configure env vars in the host dashboard (Render / Vercel).
-- Static SPA routes: if you host the frontend as a static site (Vercel), add a rewrite so client-side routes load index.html. Example `vercel.json`:
-
-```json
-{
-	"rewrites": [{ "source": "/*", "destination": "/index.html" }]
-}
-```
-
-- Payment provider: this project contains a local payment flow by default and (previously) integrated code for Razorpay. If you are not using Razorpay you can remove the keys and the `config/razorpay.js` safely (the project contains a guard so missing keys won't crash startup).
-
----
-
-## Testing the deployed API (Postman)
-
-Use Postman to test backend endpoints (bypasses browser CORS). Example flow:
-
-1. Register: POST `{{baseUrl}}/api/auth/register` JSON body { name, email, password }
-2. Login: POST `{{baseUrl}}/api/auth/login` JSON body { email, password } — save returned token
-3. Protected: GET `{{baseUrl}}/api/auth/me` with header `Authorization: Bearer <token>`
-
-See `backend/routes/authRoutes.js` for available auth endpoints. The README below contains a small collection of useful endpoints and examples.
-
----
-
-## Common troubleshooting
-
-- App toggles between `/` and `/login`:
-	- Cause: mixed client storage (cookie vs localStorage) for auth. Fix: ensure frontend reads token consistently (this project uses a cookie-based `user` payload and the axios wrapper reads token from cookies).
-
-- CORS preflight failing in browser:
-	- Ensure backend `ALLOWED_ORIGINS` includes the exact frontend origin and that backend `cors` middleware is configured before routes.
-
-- Razorpay error on startup (`key_id or oauthToken is mandatory`):
-	- Either set the Razorpay env vars in the host or remove/guard the Razorpay initializer (the repository already includes a safe initializer that disables Razorpay when keys are missing).
-
----
-
-## Useful scripts
-
-- Frontend: `npm run dev` (dev server), `npm run build` (production), `npm run preview` (preview build)
-- Backend: `npm start` (start server)
-
----
-
-## Project structure (high level)
-
-- `backend/controllers` — API handlers
-- `backend/models` — Mongoose models
-- `backend/routes` — Express routes
-- `frontend/src/pages` — React pages
-- `frontend/src/components` — reusable UI components
-
----
-
-## Contributing
-
-PRs are welcome. Small guidelines:
-- Keep changes focused and test locally
-- Add tests or update readme when you add endpoints
-
----
-
-If you'd like, I can also:
-- generate a Postman collection for common auth endpoints
-- add a `backend/README.md` with required env variable reference and Render/Vercel step-by-step deploy notes
-- run a repo-wide lint/fix to unify cookie vs localStorage usage
-
-Happy deploying — tell me if you want the Postman collection or I should commit the README update to the repo now.
+⭐ If you found this project interesting, feel free to star the repository!
