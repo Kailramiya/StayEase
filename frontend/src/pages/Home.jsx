@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PropertyCard from '../components/property/PropertyCard';
+import AIRecommendationsSection from '../components/property/AIRecommendationsSection';
 import api from '../api/api';
 import { getFavorites } from '../api/favoriteService';
 import useAuth from '../hooks/useAuth';
+import { buildAiRecommendations, loadLastSearch, saveLastSearch } from '../utils/aiRecommendations';
 
 const Home = () => {
   const [recentProperties, setRecentProperties] = useState([]);
@@ -81,8 +83,30 @@ const Home = () => {
   const visibleRecent = useMemo(() => (recentProperties || []).slice(0, 6), [recentProperties]);
   const visibleTrending = useMemo(() => (trendingProperties || []).slice(0, 6), [trendingProperties]);
 
+  // AI-signaling: simulate personalized recommendations from existing data (no new backend APIs)
+  const aiRecommendations = useMemo(() => {
+    const pool = [...(trendingProperties || []), ...(recentProperties || [])];
+    const byId = new Map();
+    for (const p of pool) {
+      if (p && p._id && !byId.has(String(p._id))) byId.set(String(p._id), p);
+    }
+
+    return buildAiRecommendations({
+      properties: Array.from(byId.values()),
+      user,
+      favorites,
+      lastSearch: loadLastSearch(),
+      limit: 6,
+      mode: user ? 'auto' : 'preview',
+    });
+  }, [favorites, recentProperties, trendingProperties, user]);
+
   const handleSearch = (e) => {
     e.preventDefault();
+
+    // AI-signaling: remember last intent (used to explain recommendations)
+    saveLastSearch({ city: searchCity, query: searchQuery });
+
     const params = new URLSearchParams();
 
     if (searchQuery.trim()) {
@@ -157,6 +181,15 @@ const Home = () => {
         </div>
       </section>
 
+      {/* AI RECOMMENDATION SECTION */}
+      <AIRecommendationsSection
+        recommendations={aiRecommendations}
+        loading={loading}
+        user={user}
+        favorites={favorites}
+        onFavoriteToggle={handleFavoriteToggle}
+      />
+
       {/* Features Section */}
       <section className="bg-slate-50 py-16">
         <div className="container mx-auto px-4">
@@ -183,9 +216,13 @@ const Home = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <h2 className="text-2xl md:text-3xl font-semibold text-slate-900">Explore</h2>
+              <h2 className="text-2xl md:text-3xl font-semibold text-slate-900">
+                {user ? 'What our AI thinks you’ll like' : 'AI-flavored picks'}
+              </h2>
               <p className="mt-2 text-slate-600">
-                These sections update based on real listings and real views.
+                {user
+                  ? 'Personalized tone with transparent signals (still heuristic-based).' 
+                  : 'Sign in for true personalization — preview uses demo signals.'}
               </p>
             </div>
             <Link to="/properties" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">
@@ -213,7 +250,7 @@ const Home = () => {
           <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-10">
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900">Recently added</h3>
+                <h3 className="text-lg font-semibold text-slate-900">Fresh picks</h3>
                 <Link
                   to="/properties?sort=-createdAt"
                   className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
@@ -241,7 +278,7 @@ const Home = () => {
 
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900">Trending now</h3>
+                <h3 className="text-lg font-semibold text-slate-900">Trending prediction</h3>
                 <Link to="/properties?sort=-views" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">
                   More
                 </Link>
