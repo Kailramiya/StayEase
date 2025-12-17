@@ -80,7 +80,7 @@ const propertySchema = new mongoose.Schema(
     },
     rating: {
       type: Number,
-      default: 0,
+      default: 4.0,
     },
     numReviews: {
       type: Number,
@@ -98,11 +98,6 @@ const propertySchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    rating: {
-      type: Number,
-      default: 4.0,
-    },
-
   },
   { timestamps: true }
 );

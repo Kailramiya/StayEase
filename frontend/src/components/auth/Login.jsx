@@ -30,11 +30,11 @@ const Login = () => {
           const stored = JSON.parse(raw || '{}');
           const token = stored?.token || stored?.user?.token;
           if (token) navigate('/', { replace: true });
-        } catch (e) {
+        } catch (_e) {
           // malformed JSON in cookie — treat as not-logged-in
         }
       }
-    } catch (err) {
+    } catch (_err) {
       // ignore
     }
   }, [navigate]);

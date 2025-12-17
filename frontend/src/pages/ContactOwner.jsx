@@ -73,8 +73,8 @@ const ContactOwner = () => {
     bodyLines.push('Regards,');
     bodyLines.push(senderName || user?.name || '—');
 
-    const subject = encodeURIComponent(`Inquiry about ${property.title}`);
-    const body = encodeURIComponent(bodyLines.join('%0D%0A'));
+    // Email is sent via backend mailer; keep bodyLines for server message context only.
+    void bodyLines;
 
     // Send via backend mailer (NodeMailer)
     setActionLoading(true);

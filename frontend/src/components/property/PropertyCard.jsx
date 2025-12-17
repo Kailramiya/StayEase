@@ -27,7 +27,6 @@ const PropertyCard = ({ property, isFavorite = false, onFavoriteToggle }) => {
   const [favorite, setFavorite] = useState(Boolean(isFavorite));
   const [loading, setLoading] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
-  const [imageError, setImageError] = useState(false);
 
   // Carousel state
   const images = Array.isArray(property.images)
@@ -185,7 +184,6 @@ const PropertyCard = ({ property, isFavorite = false, onFavoriteToggle }) => {
             className={`w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
             onLoad={() => setImageLoading(false)}
             onError={(e) => {
-              setImageError(true);
               setImageLoading(false);
               e.target.src = 'https://via.placeholder.com/400x300/e5e7eb/6b7280?text=No+Image';
             }}

@@ -1,7 +1,8 @@
-// Seed database with realistic demo data aligned with current schemas
+// Seed database with realistic Indian demo data aligned with schemas
 require('dotenv').config();
 const mongoose = require('mongoose');
 const { faker } = require('@faker-js/faker');
+
 const Property = require('../models/Property');
 const User = require('../models/User');
 const Review = require('../models/Review');
@@ -9,77 +10,115 @@ const Booking = require('../models/Booking');
 
 const MONGO = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/stayease';
 
-const NUM_PROPERTIES = Number(process.env.SEED_PROPERTIES || 100);
-const NUM_USERS = Number(process.env.SEED_USERS || 25);
+const NUM_PROPERTIES = Number(process.env.SEED_PROPERTIES || 120);
+const NUM_USERS = Number(process.env.SEED_USERS || 30);
 const IMAGES_PER_PROPERTY = 5;
+
+/* ------------------ INDIA DATA ------------------ */
+
+const indianCities = [
+  { city: 'Bengaluru', state: 'Karnataka', lat: 12.9716, lng: 77.5946 },
+  { city: 'Hyderabad', state: 'Telangana', lat: 17.385, lng: 78.4867 },
+  { city: 'Pune', state: 'Maharashtra', lat: 18.5204, lng: 73.8567 },
+  { city: 'Mumbai', state: 'Maharashtra', lat: 19.076, lng: 72.8777 },
+  { city: 'Delhi', state: 'Delhi', lat: 28.6139, lng: 77.209 },
+  { city: 'Chennai', state: 'Tamil Nadu', lat: 13.0827, lng: 80.2707 },
+  { city: 'Noida', state: 'Uttar Pradesh', lat: 28.5355, lng: 77.391 },
+  { city: 'Gurgaon', state: 'Haryana', lat: 28.4595, lng: 77.0266 },
+  { city: 'Indore', state: 'Madhya Pradesh', lat: 22.7196, lng: 75.8577 },
+  { city: 'Jaipur', state: 'Rajasthan', lat: 26.9124, lng: 75.7873 },
+];
 
 const sampleImages = [
   'https://images.unsplash.com/photo-1501183638710-841dd1904471',
   'https://images.unsplash.com/photo-1523217582562-09d0def993a6',
-  'https://images.unsplash.com/photo-1472224371017-08207f84aaae',
-  'https://images.unsplash.com/photo-1494526585095-c41746248156',
   'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267',
+  'https://images.unsplash.com/photo-1494526585095-c41746248156',
+  'https://images.unsplash.com/photo-1472224371017-08207f84aaae',
 ];
 
-const propertyTypes = ['apartment', 'house', 'villa', 'studio', 'pg', 'hostel'];
+const propertyTypes = ['apartment', 'house', 'villa', 'studio', 'pg'];
 const furnishedOptions = ['fully-furnished', 'semi-furnished', 'unfurnished'];
-const amenityPool = ['Wifi', 'AC', 'Kitchen', 'Washer', 'TV', 'Parking', 'Gym', 'Pool', 'Elevator', 'Pet Friendly'];
+const amenityPool = [
+  'Wifi',
+  'AC',
+  'Kitchen',
+  'Power Backup',
+  'Parking',
+  'Lift',
+  'Security',
+  'Gym',
+  'Balcony',
+];
 
 const randomFrom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+/* ------------------ DB ------------------ */
+
 async function connect() {
   await mongoose.connect(MONGO);
-  console.log('Mongo connected');
+  console.log('✅ Mongo connected');
 }
 
 async function clearCollections() {
   await Promise.all([
     Property.deleteMany({}),
-    User.deleteMany({}),
+    User.deleteMany({ email: /demo\+/ }),
     Review.deleteMany({}),
     Booking.deleteMany({}),
   ]);
-  console.log('Collections cleared');
+  console.log('🧹 Old demo data cleared');
 }
+
+/* ------------------ FACTORIES ------------------ */
 
 function makeUser(i) {
   return {
     name: faker.person.fullName(),
-    email: `demo+${i}@example.com`,
+    email: `demo+${i}@stayease.in`,
     password: 'Password123!',
-    phone: faker.string.numeric(10),
+    phone: `9${faker.string.numeric(9)}`,
     role: 'user',
   };
 }
 
-function makePropertyBase(ownerId) {
-  const city = faker.location.city();
-  const state = faker.location.state();
-  const street = faker.location.streetAddress();
-  const pincode = faker.string.numeric(6);
+function makeProperty(ownerId) {
+  const cityObj = randomFrom(indianCities);
 
-  const monthly = faker.number.int({ min: 5000, max: 40000 });
-  const security = Math.floor(monthly * faker.number.float({ min: 1.0, max: 2.5 }));
+  const lat =
+    cityObj.lat +
+    faker.number.float({ min: -0.05, max: 0.05, multipleOf: 0.0001 });
 
-  const lat = Number(faker.location.latitude({ min: 8, max: 37.5, precision: 4 }));
-  const lng = Number(faker.location.longitude({ min: 68.7, max: 97.25, precision: 4 }));
+  const lng =
+    cityObj.lng +
+    faker.number.float({ min: -0.05, max: 0.05, multipleOf: 0.0001 });
 
-  const amenities = faker.helpers.arrayElements(amenityPool, { min: 3, max: 7 });
-
-  const images = Array.from({ length: IMAGES_PER_PROPERTY }).map((_, idx) => ({
-    url: `${randomFrom(sampleImages)}?auto=format&fit=crop&w=1200&q=60&sig=${faker.string.uuid()}`,
-    public_id: '',
-  }));
+  const monthly = faker.number.int({ min: 7000, max: 45000 });
 
   return {
-    title: `${faker.company.catchPhrase()} in ${city}`,
+    title: `${faker.company.catchPhrase()} in ${cityObj.city}`,
     description: faker.lorem.paragraphs({ min: 1, max: 2 }),
     propertyType: randomFrom(propertyTypes),
-    address: { street, city, state, pincode, country: 'India' },
-    location: { type: 'Point', coordinates: [lng, lat] },
-    price: { monthly, security },
-    amenities,
-    images,
+    address: {
+      street: faker.location.streetAddress(),
+      city: cityObj.city,
+      state: cityObj.state,
+      pincode: faker.string.numeric(6),
+      country: 'India',
+    },
+    location: {
+      type: 'Point',
+      coordinates: [lng, lat],
+    },
+    price: {
+      monthly,
+      security: monthly * faker.number.int({ min: 1, max: 3 }),
+    },
+    amenities: faker.helpers.arrayElements(amenityPool, { min: 4, max: 7 }),
+    images: Array.from({ length: IMAGES_PER_PROPERTY }).map(() => ({
+      url: `${randomFrom(sampleImages)}?auto=format&fit=crop&w=1200&q=60&sig=${faker.string.uuid()}`,
+      public_id: '',
+    })),
     bedrooms: faker.number.int({ min: 1, max: 4 }),
     bathrooms: faker.number.int({ min: 1, max: 3 }),
     area: faker.number.int({ min: 350, max: 2200 }),
@@ -87,6 +126,13 @@ function makePropertyBase(ownerId) {
     availability: 'available',
     owner: ownerId,
     isVerified: faker.datatype.boolean(),
+
+    // AI signals
+    views: faker.number.int({ min: 20, max: 400 }),
+    bookingsCount: faker.number.int({ min: 1, max: 40 }),
+    rating: Number(
+      faker.number.float({ min: 3.6, max: 4.9, multipleOf: 0.1 }).toFixed(1)
+    ),
   };
 }
 
@@ -99,75 +145,83 @@ function makeReview(userId, propertyId) {
   };
 }
 
-function diffInMonths(a, b) {
-  const ms = Math.abs(b - a);
-  return Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24 * 30)));
-}
+/* ------------------ SEED ------------------ */
 
 async function seed() {
   await connect();
   await clearCollections();
 
-  // Create demo users
+  // USERS
   const users = [];
   for (let i = 0; i < NUM_USERS; i++) {
-    const u = new User(makeUser(i));
-    await u.save();
-    users.push(u);
+    const user = new User(makeUser(i));
+    await user.save();
+    users.push(user);
   }
-  console.log('Users created:', users.length);
+  console.log('👤 Users created:', users.length);
 
-  // Create properties
+  // PROPERTIES
   const properties = [];
   for (let i = 0; i < NUM_PROPERTIES; i++) {
     const owner = randomFrom(users);
-    const p = new Property(makePropertyBase(owner._id));
-    await p.save();
-    properties.push(p);
-    if (i % 10 === 0) console.log('Seeded properties:', i);
+    const property = new Property(makeProperty(owner._id));
+    await property.save();
+    properties.push(property);
+    if (i % 15 === 0) console.log('🏠 Seeded properties:', i);
   }
-  console.log('Properties created:', properties.length);
+  console.log('🏠 Properties created:', properties.length);
 
-  // Create reviews per property (1-5), then backfill rating/numReviews
+  // REVIEWS
   for (const prop of properties) {
-    const numReviews = faker.number.int({ min: 1, max: 5 });
+    const numReviews = faker.number.int({ min: 2, max: 6 });
     let sum = 0;
-    for (let r = 0; r < numReviews; r++) {
+    for (let i = 0; i < numReviews; i++) {
       const reviewer = randomFrom(users);
-      const reviewDoc = new Review(makeReview(reviewer._id, prop._id));
-      sum += reviewDoc.rating;
-      await reviewDoc.save();
+      const review = new Review(makeReview(reviewer._id, prop._id));
+      sum += review.rating;
+      await review.save();
     }
-    const avg = Number((sum / numReviews).toFixed(1));
-    prop.rating = avg;
     prop.numReviews = numReviews;
+    prop.rating = Number((sum / numReviews).toFixed(1));
     await prop.save();
   }
-  console.log('Reviews created and ratings backfilled');
+  console.log('⭐ Reviews created');
 
-  // Create some bookings
-  for (let i = 0; i < 40; i++) {
+  // BOOKINGS (FIXED: uses `days`)
+  for (let i = 0; i < 45; i++) {
     const property = randomFrom(properties);
     const user = randomFrom(users);
-    const start = faker.date.soon({ days: 45 });
-    const end = faker.date.soon({ days: faker.number.int({ min: 60, max: 240 }) });
-    const months = diffInMonths(start, end);
-    const totalPrice = months * property.price.monthly;
+
+    const checkIn = faker.date.soon({ days: 30 });
+    const checkOut = faker.date.soon({ days: faker.number.int({ min: 60, max: 180 }) });
+
+    const days = Math.max(
+      1,
+      Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24))
+    );
+
+    const dailyPrice = Math.ceil(property.price.monthly / 30);
+    const totalPrice = days * dailyPrice;
+
     const booking = new Booking({
       property: property._id,
       user: user._id,
-      checkIn: start,
-      checkOut: end,
-      months,
+      checkIn,
+      checkOut,
+      days,
       totalPrice,
       status: 'confirmed',
     });
+
     await booking.save();
   }
-  console.log('Bookings created');
+  console.log('📦 Bookings created');
 
   await mongoose.connection.close();
-  console.log('Seeding complete');
+  console.log('✅ Seeding complete');
 }
 
-seed().catch((err) => { console.error(err); process.exit(1); });
+seed().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

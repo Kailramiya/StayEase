@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../api/api';
 import { 
   FaCreditCard, 
   FaLock, 
@@ -8,7 +7,7 @@ import {
   FaSpinner 
 } from 'react-icons/fa';
 
-const PaymentButton = ({ bookingId, amount, paymentOrder = null, onSuccess, onFailure, propertyName = '' }) => {
+const PaymentButton = ({ bookingId: _bookingId, amount, paymentOrder: _paymentOrder = null, onSuccess, onFailure, propertyName: _propertyName = '' }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);

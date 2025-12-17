@@ -27,9 +27,9 @@ const Home = () => {
       try {
         const [recentRes, trendingRes] = await Promise.all([
           // Recently added: ensure traditional sorting works
-          api.get('/properties?limit=6&sort=-createdAt&rank=none'),
+          api.get('/properties?limit=6&sort=-createdAt&rank=none&includeAi=true'),
           // Trending: most viewed
-          api.get('/properties?limit=12&sort=-views&rank=none'),
+          api.get('/properties?limit=12&sort=-views&rank=none&includeAi=true'),
         ]);
 
         setRecentProperties(extractProperties(recentRes));

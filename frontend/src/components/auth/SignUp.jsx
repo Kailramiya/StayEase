@@ -126,8 +126,8 @@ const Signup = () => {
 
     try {
       setLoading(true);
-      const { confirmPassword, ...payload } = formData;
-      const data = await registerUser({ ...payload, role });
+      const { confirmPassword: _confirmPassword, ...payload } = formData;
+      await registerUser({ ...payload, role });
 
       // Fetch current user from backend (will also update cookie) and set in context
       try {

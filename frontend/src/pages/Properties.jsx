@@ -28,7 +28,7 @@ const Properties = () => {
     availability: searchParams.get('availability') || '',
   });
 
-  const [sortBy, setSortBy] = useState('recent'); // 'recent', 'price-low', 'price-high', 'rating'
+  const [sortBy, setSortBy] = useState('recent'); // 'ai', 'recent', 'price-low', 'price-high', 'rating'
   
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -57,17 +57,30 @@ const Properties = () => {
       
       // Add sorting
       switch (sortBy) {
+        case 'ai':
+          queryFilters.rank = 'ai';
+          queryFilters.includeAi = true;
+          // In AI rank mode, backend ignores sort; don't send it.
+          break;
         case 'price-low':
+          queryFilters.rank = 'none';
+          queryFilters.includeAi = true;
           queryFilters.sort = 'price.monthly';
           break;
         case 'price-high':
+          queryFilters.rank = 'none';
+          queryFilters.includeAi = true;
           queryFilters.sort = '-price.monthly';
           break;
         case 'rating':
+          queryFilters.rank = 'none';
+          queryFilters.includeAi = true;
           queryFilters.sort = '-rating';
           break;
         case 'recent':
         default:
+          queryFilters.rank = 'none';
+          queryFilters.includeAi = true;
           queryFilters.sort = '-createdAt';
           break;
       }
@@ -360,6 +373,7 @@ const Properties = () => {
                 }}
                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
+                <option value="ai">AI Recommended</option>
                 <option value="recent">Recently Added</option>
                 <option value="price-low">Price: Low to High</option>
                 <option value="price-high">Price: High to Low</option>
