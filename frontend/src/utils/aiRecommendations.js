@@ -55,6 +55,32 @@ const pickCue = (scorePct) => {
   return { label: 'Trending Prediction 📊', tone: 'from-purple-600 to-indigo-600' };
 };
 
+export const buildAiListContext = (properties = []) => {
+  const list = Array.isArray(properties) ? properties : [];
+  const prices = list
+    .map((p) => Number(p?.price?.monthly))
+    .filter((n) => Number.isFinite(n) && n > 0);
+
+  const views = list
+    .map((p) => Number(p?.views))
+    .filter((n) => Number.isFinite(n) && n >= 0);
+
+  const avgPrice = prices.length ? prices.reduce((s, n) => s + n, 0) / prices.length : 0;
+  const minPrice = prices.length ? Math.min(...prices) : 0;
+  const maxPrice = prices.length ? Math.max(...prices) : 0;
+
+  const avgViews = views.length ? views.reduce((s, n) => s + n, 0) / views.length : 0;
+  const maxViews = views.length ? Math.max(...views) : 0;
+
+  return {
+    avgPrice,
+    minPrice,
+    maxPrice,
+    avgViews,
+    maxViews,
+  };
+};
+
 const normalizeFilters = (filters) => {
   const f = filters || {};
   return {
@@ -76,6 +102,7 @@ export const buildAiSignalsForProperty = ({
   favorites = [],
   lastSearch = null,
   activeFilters = null,
+  listContext = null,
   mode = 'auto',
 } = {}) => {
   const p = property;
@@ -96,20 +123,42 @@ export const buildAiSignalsForProperty = ({
     (filters.search && (title.includes(filters.search) || desc.includes(filters.search) || city.includes(filters.search))) ||
     (searchQuery && (title.includes(searchQuery) || desc.includes(searchQuery) || city.includes(searchQuery)));
 
+  const ctx = listContext || buildAiListContext([p]);
+
   // Backend provides aiLabel (heuristic), but we don’t rely on it existing.
   const aiLabel = String(p?.aiLabel || '').toLowerCase();
-  const isHighDemand = aiLabel.includes('high demand') || (Number(p?.views) || 0) > 50;
-  const isBestValue = aiLabel.includes('best value') || (Number(p?.price?.monthly) || 0) > 0;
+  const viewsNum = Number(p?.views) || 0;
+  const monthly = Number(p?.price?.monthly) || 0;
+  const rating = Number(p?.rating) || 0;
+
+  const isHighDemand = aiLabel.includes('high demand') || (ctx.avgViews > 0 ? viewsNum > ctx.avgViews : viewsNum > 50);
+  const isBestValue = aiLabel.includes('best value') || (ctx.avgPrice > 0 && monthly > 0 ? monthly <= 0.85 * ctx.avgPrice : false);
   const isFavorite = favSet.has(String(p?._id));
 
   // Transparent heuristic score → displayed as “match %”
-  // Uses BOTH search intent and active filters as signals.
+  // Uses BOTH search intent and active filters as signals, plus lightweight ranking signals.
   let score = 0;
-  if (cityMatch) score += 40;
-  if (queryMatch) score += 22;
-  if (isFavorite) score += 14;
-  if (isHighDemand) score += 10;
-  if (isBestValue) score += 8;
+  if (cityMatch) score += 34;
+  if (queryMatch) score += 18;
+  if (isFavorite) score += 12;
+
+  // Popularity signal (relative)
+  if (ctx.maxViews > 0) score += clamp((viewsNum / ctx.maxViews) * 16, 0, 16);
+  else if (viewsNum > 0) score += 4;
+
+  // Rating signal
+  if (rating > 0) score += clamp((rating / 5) * 18, 0, 18);
+
+  // Value signal (cheaper-than-average gets a boost; expensive gets smaller)
+  if (ctx.avgPrice > 0 && monthly > 0) {
+    const ratio = monthly / ctx.avgPrice; // 1.0 means average
+    // ratio 0.6 => strong boost, ratio 1.4 => minimal boost
+    const valueBoost = clamp((1.3 - ratio) * 10, 0, 10);
+    score += valueBoost;
+  }
+
+  if (isHighDemand) score += 6;
+  if (isBestValue) score += 6;
 
   // Filter-alignment boosters (only if user set those filters)
   if (filters.propertyType && normalizeText(p?.propertyType) === filters.propertyType) score += 6;
@@ -122,7 +171,9 @@ export const buildAiSignalsForProperty = ({
   for (let i = 0; i < idStr.length; i++) hash = (hash * 31 + idStr.charCodeAt(i)) % 97;
   score += hash % 7;
 
-  const scorePct = clamp(Math.round(score), 55, 96);
+  // Convert raw score to a stable % range with enough spread.
+  // (No hard 55% floor unless signals are truly absent.)
+  const scorePct = clamp(Math.round(42 + score), 35, 96);
   const cue = pickCue(scorePct);
 
   const hasActiveFilters = Boolean(
@@ -179,6 +230,7 @@ export const buildAiRecommendations = ({
   limit = 6,
   mode = 'auto', // 'auto' | 'preview'
 } = {}) => {
+  const ctx = buildAiListContext(properties);
   const scored = (properties || [])
     .filter(Boolean)
     .map((p) => {
@@ -190,6 +242,7 @@ export const buildAiRecommendations = ({
           favorites,
           lastSearch,
           activeFilters,
+          listContext: ctx,
           mode,
         }),
       };

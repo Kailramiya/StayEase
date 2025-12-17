@@ -5,7 +5,7 @@ import { getProperties } from '../api/propertyService';
 import { getFavorites } from '../api/favoriteService';
 import useAuth from '../hooks/useAuth';
 import { FaFilter, FaSearch, FaTimes, FaSortAmountDown } from 'react-icons/fa';
-import { buildAiSignalsForProperty, loadLastSearch, saveLastSearch } from '../utils/aiRecommendations';
+import { buildAiListContext, buildAiSignalsForProperty, loadLastSearch, saveLastSearch } from '../utils/aiRecommendations';
 
 const Properties = () => {
   const [searchParams] = useSearchParams();
@@ -40,6 +40,7 @@ const Properties = () => {
   const aiRows = useMemo(() => {
     if (sortBy !== 'ai') return [];
     const lastSearch = loadLastSearch();
+    const ctx = buildAiListContext(properties);
     return (properties || []).map((p) => ({
       property: p,
       ai: buildAiSignalsForProperty({
@@ -47,6 +48,7 @@ const Properties = () => {
         user,
         favorites,
         lastSearch,
+        listContext: ctx,
         activeFilters: {
           search: filters.search,
           city: filters.city,

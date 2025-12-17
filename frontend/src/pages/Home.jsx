@@ -5,7 +5,13 @@ import AIRecommendationsSection from '../components/property/AIRecommendationsSe
 import api from '../api/api';
 import { getFavorites } from '../api/favoriteService';
 import useAuth from '../hooks/useAuth';
-import { buildAiRecommendations, buildAiSignalsForProperty, loadLastSearch, saveLastSearch } from '../utils/aiRecommendations';
+import {
+  buildAiListContext,
+  buildAiRecommendations,
+  buildAiSignalsForProperty,
+  loadLastSearch,
+  saveLastSearch,
+} from '../utils/aiRecommendations';
 
 const Home = () => {
   const [recentProperties, setRecentProperties] = useState([]);
@@ -83,6 +89,9 @@ const Home = () => {
   const visibleRecent = useMemo(() => (recentProperties || []).slice(0, 6), [recentProperties]);
   const visibleTrending = useMemo(() => (trendingProperties || []).slice(0, 6), [trendingProperties]);
 
+  const recentCtx = useMemo(() => buildAiListContext(visibleRecent), [visibleRecent]);
+  const trendingCtx = useMemo(() => buildAiListContext(visibleTrending), [visibleTrending]);
+
   const lastSearch = useMemo(() => loadLastSearch(), []);
 
   // AI-signaling: simulate personalized recommendations from existing data (no new backend APIs)
@@ -97,11 +106,11 @@ const Home = () => {
       properties: Array.from(byId.values()),
       user,
       favorites,
-      lastSearch: loadLastSearch(),
+      lastSearch,
       limit: 6,
       mode: user ? 'auto' : 'preview',
     });
-  }, [favorites, recentProperties, trendingProperties, user]);
+  }, [favorites, lastSearch, recentProperties, trendingProperties, user]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -275,6 +284,7 @@ const Home = () => {
                         user,
                         favorites,
                         lastSearch,
+                        listContext: recentCtx,
                         mode: user ? 'auto' : 'preview',
                       })}
                       isFavorite={favorites.includes(String(property._id))}
@@ -307,6 +317,7 @@ const Home = () => {
                         user,
                         favorites,
                         lastSearch,
+                        listContext: trendingCtx,
                         mode: user ? 'auto' : 'preview',
                       })}
                       isFavorite={favorites.includes(String(property._id))}
